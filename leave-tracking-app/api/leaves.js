@@ -31,12 +31,17 @@ module.exports = async (req, res) => {
   if (req.method === 'POST') {
     const { user_id, leave_type, dates, reason } = req.body;
 
-    if (!user_id || !leave_type || !dates || !Array.isArray(dates)) {
+    if (!user_id || !dates || !Array.isArray(dates)) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     try {
-      const leave = await createLeave({ user_id, leave_type, dates, reason });
+      const leave = await createLeave({ 
+        user_id, 
+        leave_type: leave_type || 'casual', // Default to casual (Annual Leave)
+        dates, 
+        reason 
+      });
       res.status(201).json({
         id: leave.id,
         message: 'Leave application submitted successfully'

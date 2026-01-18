@@ -6,7 +6,6 @@ import {
   CheckCircle,
   XCircle,
   X,
-  Plus,
   Building2,
   Clock,
   Users,
@@ -25,7 +24,6 @@ function PublicDashboard() {
   // Form state
   const [formData, setFormData] = useState({
     employee_name: '',
-    leave_type: '',
     dates: [],
     reason: ''
   })
@@ -36,10 +34,12 @@ function PublicDashboard() {
   const inputRef = useRef(null)
 
   // Date picker state
-  const [selectedDate, setSelectedDate] = useState('')
   const [dateConflicts, setDateConflicts] = useState({})
   const [showTooltip, setShowTooltip] = useState(false)
   const [dateFilter, setDateFilter] = useState('') // Filter by date
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const calendarRef = useRef(null)
 
   useEffect(() => {
     fetchData()
@@ -67,6 +67,19 @@ function PublicDashboard() {
     }
   }, [showTooltip])
 
+  // Close calendar when clicking outside
+  useEffect(() => {
+    if (showCalendar) {
+      const handleClickOutside = (e) => {
+        if (calendarRef.current && !calendarRef.current.contains(e.target)) {
+          setShowCalendar(false)
+        }
+      }
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showCalendar])
+
   const fetchData = async () => {
     try {
       const [employeesRes, leavesRes] = await Promise.all([
@@ -82,10 +95,11 @@ function PublicDashboard() {
       setAllLeaves(leaves)
       
       // Filter today's leaves
-      const today = new Date().toISOString().split('T')[0]
+      const today = new Date()
+      const todayStr = formatDateString(today.getFullYear(), today.getMonth(), today.getDate())
       const todayLeavesFiltered = leaves.filter(leave => {
         if (leave.dates && Array.isArray(leave.dates)) {
-          return leave.dates.includes(today)
+          return leave.dates.includes(todayStr)
         }
         return false
       })
@@ -132,7 +146,7 @@ function PublicDashboard() {
     try {
       await axios.post('/api/leaves', {
         user_id: employee.id,
-        leave_type: formData.leave_type,
+        leave_type: 'casual', // Default to casual (Annual Leave)
         dates: formData.dates,
         reason: formData.reason
       })
@@ -140,7 +154,6 @@ function PublicDashboard() {
       setMessage({ type: 'success', text: 'Leave application submitted successfully!' })
       setFormData({
         employee_name: '',
-        leave_type: '',
         dates: [],
         reason: ''
       })
@@ -210,24 +223,72 @@ function PublicDashboard() {
     setDateConflicts(conflicts)
   }
 
-  const addDate = () => {
-    if (!selectedDate) return
-
+  const toggleDate = (dateStr) => {
     // Validate date is not past
-    if (!isValidDate(selectedDate)) {
+    if (!isValidDate(dateStr)) {
       setMessage({ type: 'error', text: 'Cannot select past dates. Please select today or a future date.' })
-      setSelectedDate('')
       return
     }
 
-    if (!formData.dates.includes(selectedDate)) {
+    // Toggle date: if already selected, remove it; otherwise add it
+    if (formData.dates.includes(dateStr)) {
       setFormData(prev => ({
         ...prev,
-        dates: [...prev.dates, selectedDate].sort()
+        dates: prev.dates.filter(d => d !== dateStr)
       }))
-      setSelectedDate('')
-      setMessage({ type: '', text: '' }) // Clear any previous errors
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        dates: [...prev.dates, dateStr].sort()
+      }))
     }
+    
+    setMessage({ type: '', text: '' }) // Clear any previous errors
+  }
+
+  // Format date to YYYY-MM-DD without timezone issues
+  const formatDateString = (year, month, day) => {
+    const monthStr = String(month + 1).padStart(2, '0')
+    const dayStr = String(day).padStart(2, '0')
+    return `${year}-${monthStr}-${dayStr}`
+  }
+
+  // Generate calendar days for current month
+  const getCalendarDays = () => {
+    const year = currentMonth.getFullYear()
+    const month = currentMonth.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const daysInMonth = lastDay.getDate()
+    const startingDayOfWeek = firstDay.getDay()
+    
+    const days = []
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null)
+    }
+    
+    // Add all days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day)
+      const dateStr = formatDateString(year, month, day) // Use local date formatting
+      days.push({
+        day,
+        dateStr,
+        date
+      })
+    }
+    
+    return days
+  }
+
+  const navigateMonth = (direction) => {
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev)
+      newDate.setMonth(prev.getMonth() + direction)
+      return newDate
+    })
   }
 
   const removeDate = (dateToRemove) => {
@@ -255,15 +316,17 @@ function PublicDashboard() {
     return types[type] || type
   }
 
-  // Get minimum date (today)
+  // Get minimum date (today) - formatted as YYYY-MM-DD
   const getMinDate = () => {
     const today = new Date()
-    return today.toISOString().split('T')[0]
+    return formatDateString(today.getFullYear(), today.getMonth(), today.getDate())
   }
 
   // Check if date is valid (not past, today onwards)
   const isValidDate = (dateStr) => {
-    const selectedDate = new Date(dateStr)
+    // Parse YYYY-MM-DD string and compare with today
+    const [year, month, day] = dateStr.split('-').map(Number)
+    const selectedDate = new Date(year, month - 1, day)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     selectedDate.setHours(0, 0, 0, 0)
@@ -323,13 +386,12 @@ function PublicDashboard() {
           <div className="today-leaves-section">
             <div className="today-header">
               <Clock size={20} />
-              <h2>On Leave Today ({formatDate(new Date().toISOString())})</h2>
+              <h2>On Leave Today ({formatDate(formatDateString(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()))})</h2>
             </div>
             <div className="today-list">
               {todayLeaves.map(leave => (
                 <div key={leave.id} className="today-item">
                   <span className="today-name">{leave.employee_name}</span>
-                  <span className={`leave-type-badge ${leave.leave_type}`}>{formatLeaveType(leave.leave_type)}</span>
                   <span className={`status-badge ${leave.status}`}>{leave.status}</span>
                 </div>
               ))}
@@ -394,45 +456,87 @@ function PublicDashboard() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Leave Type</label>
-                  <select
-                    name="leave_type"
-                    className="form-select"
-                    value={formData.leave_type}
-                    onChange={(e) => setFormData(prev => ({ ...prev, leave_type: e.target.value }))}
-                    required
-                  >
-                    <option value="">Select leave type...</option>
-                    <option value="casual">Annual Leave</option>
-                    <option value="medical">Medical Leave</option>
-                    <option value="halfday">Half Day Leave</option>
-                    <option value="short">Short Leave</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
                   <label className="form-label">Select Day/Days</label>
-                  <div className="date-picker-row">
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      min={getMinDate()}
-                      style={{ flex: 1 }}
-                    />
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary"
-                      onClick={addDate}
-                      disabled={!selectedDate}
-                      style={{ marginLeft: '0.5rem' }}
+                  <div className="custom-calendar-wrapper" ref={calendarRef}>
+                    <button
+                      type="button"
+                      className="form-input calendar-trigger"
+                      onClick={() => setShowCalendar(!showCalendar)}
+                      style={{ textAlign: 'left', cursor: 'pointer' }}
                     >
-                      <Plus size={18} />
-                      Add
+                      <CalendarDays size={18} style={{ marginRight: '0.5rem', display: 'inline-block', verticalAlign: 'middle' }} />
+                      {formData.dates.length > 0 
+                        ? `${formData.dates.length} date${formData.dates.length > 1 ? 's' : ''} selected`
+                        : 'Click to select dates'
+                      }
                     </button>
+                    
+                    {showCalendar && (
+                      <>
+                        <div className="calendar-backdrop" onClick={() => setShowCalendar(false)}></div>
+                        <div className="custom-calendar">
+                        <div className="calendar-header">
+                          <button 
+                            type="button" 
+                            className="calendar-nav-btn"
+                            onClick={() => navigateMonth(-1)}
+                          >
+                            ←
+                          </button>
+                          <h4 className="calendar-month-year">
+                            {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                          </h4>
+                          <button 
+                            type="button" 
+                            className="calendar-nav-btn"
+                            onClick={() => navigateMonth(1)}
+                          >
+                            →
+                          </button>
+                        </div>
+                        <div className="calendar-weekdays">
+                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                            <div key={day} className="calendar-weekday">{day}</div>
+                          ))}
+                        </div>
+                        <div className="calendar-days">
+                          {getCalendarDays().map((dayData, idx) => {
+                            if (!dayData) {
+                              return <div key={`empty-${idx}`} className="calendar-day empty"></div>
+                            }
+                            
+                            const isSelected = formData.dates.includes(dayData.dateStr)
+                            const isPast = !isValidDate(dayData.dateStr)
+                            const today = new Date()
+                            const todayStr = formatDateString(today.getFullYear(), today.getMonth(), today.getDate())
+                            const isToday = dayData.dateStr === todayStr
+                            
+                            return (
+                              <button
+                                key={dayData.dateStr}
+                                type="button"
+                                className={`calendar-day ${isSelected ? 'selected' : ''} ${isPast ? 'past' : ''} ${isToday ? 'today' : ''}`}
+                                onClick={() => !isPast && toggleDate(dayData.dateStr)}
+                                disabled={isPast}
+                              >
+                                {dayData.day}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <div className="calendar-footer">
+                          <button
+                            type="button"
+                            className="btn btn-primary calendar-done-btn"
+                            onClick={() => setShowCalendar(false)}
+                          >
+                            Done
+                          </button>
+                        </div>
+                      </div>
+                      </>
+                    )}
                   </div>
-                  <p className="form-hint" style={{ marginTop: '0.5rem' }}>Select the date and press Add</p>
                   
                   {formData.dates.length > 0 && (
                     <div className="selected-dates-wrapper">
@@ -562,7 +666,6 @@ function PublicDashboard() {
                     <thead>
                       <tr>
                         <th>Name</th>
-                        <th>Type</th>
                         <th>Dates</th>
                         <th>Status</th>
                       </tr>
@@ -572,11 +675,6 @@ function PublicDashboard() {
                         <tr key={leave.id}>
                           <td>
                             <span className="employee-cell-name">{leave.employee_name}</span>
-                          </td>
-                          <td>
-                            <span className={`leave-type-badge ${leave.leave_type}`}>
-                              {formatLeaveType(leave.leave_type)}
-                            </span>
                           </td>
                           <td>
                             <div className="dates-list">

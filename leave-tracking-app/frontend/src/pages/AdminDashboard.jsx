@@ -296,9 +296,7 @@ function AdminDashboard() {
                   <thead>
                     <tr>
                       <th>Employee</th>
-                      <th>Type</th>
                       <th>Selected Dates</th>
-                      <th>Applied On</th>
                       <th>Status</th>
                     </tr>
                   </thead>
@@ -309,15 +307,7 @@ function AdminDashboard() {
                           <span className="employee-cell-name">{leave.employee_name}</span>
                         </td>
                         <td>
-                          <span className={`leave-type-badge ${leave.leave_type}`}>
-                            {formatLeaveType(leave.leave_type)}
-                          </span>
-                        </td>
-                        <td>
                           {renderDatesWithTooltip(leave.dates, 3, `recent-${leave.id}`)}
-                        </td>
-                        <td>
-                          <span className="time-ago-text">{getTimeAgo(leave.applied_at)}</span>
                         </td>
                         <td>
                           <span className={`status-badge ${leave.status}`}>
@@ -357,7 +347,6 @@ function AdminDashboard() {
                     <thead>
                       <tr>
                         <th>Employee</th>
-                        <th>Leave Type</th>
                         <th>Selected Dates</th>
                         <th>Applied On</th>
                         <th>Reason</th>
@@ -369,11 +358,6 @@ function AdminDashboard() {
                         <tr key={leave.id}>
                           <td>
                             <span className="employee-cell-name">{leave.employee_name}</span>
-                          </td>
-                          <td>
-                            <span className={`leave-type-badge ${leave.leave_type}`}>
-                              {formatLeaveType(leave.leave_type)}
-                            </span>
                           </td>
                           <td>
                             <div className="dates-cell">
@@ -419,9 +403,6 @@ function AdminDashboard() {
                         <div>
                           <div className="pending-employee-name">{leave.employee_name}</div>
                           <div className="pending-meta">
-                            <span className={`leave-type-badge ${leave.leave_type}`}>
-                              {formatLeaveType(leave.leave_type)}
-                            </span>
                             <span className="pending-date-count">({leave.dates?.length || 0} days)</span>
                           </div>
                         </div>
@@ -501,25 +482,6 @@ function AdminDashboard() {
 
                 {expandedEmployee === employee.id && (
                   <div className="employee-card-details">
-                    <div className="leave-stats">
-                      <div className="leave-stat">
-                        <div className="leave-stat-value">{employee.casual_leaves || 0}</div>
-                        <div className="leave-stat-label">Annual Leave</div>
-                      </div>
-                      <div className="leave-stat">
-                        <div className="leave-stat-value">{employee.medical_leaves || 0}</div>
-                        <div className="leave-stat-label">Medical</div>
-                      </div>
-                      <div className="leave-stat">
-                        <div className="leave-stat-value">{employee.halfday_leaves || 0}</div>
-                        <div className="leave-stat-label">Half Day</div>
-                      </div>
-                      <div className="leave-stat">
-                        <div className="leave-stat-value">{employee.short_leaves || 0}</div>
-                        <div className="leave-stat-label">Short</div>
-                      </div>
-                    </div>
-
                     {/* Employee's leaves list */}
                     <div style={{ marginTop: '1rem' }}>
                       <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--color-text-muted)' }}>Leave History</h4>
@@ -531,7 +493,6 @@ function AdminDashboard() {
                             <thead>
                               <tr>
                                 <th>Applied On</th>
-                                <th>Type</th>
                                 <th>Dates</th>
                                 <th>Status</th>
                               </tr>
@@ -540,11 +501,6 @@ function AdminDashboard() {
                               {getEmployeeLeaves(employee.id).slice(0, 5).map(leave => (
                                 <tr key={leave.id}>
                                   <td>{formatDate(leave.applied_at)}</td>
-                                  <td>
-                                    <span className={`leave-type-badge ${leave.leave_type}`}>
-                                      {formatLeaveType(leave.leave_type)}
-                                    </span>
-                                  </td>
                                   <td>
                                     {renderDatesWithTooltip(leave.dates, 2, `employee-${employee.id}-${leave.id}`)}
                                   </td>

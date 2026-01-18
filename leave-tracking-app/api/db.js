@@ -268,7 +268,7 @@ async function createLeave(leaveData) {
 
     const leave = {
       user_id: userId,
-      leave_type: leaveData.leave_type,
+      leave_type: leaveData.leave_type || 'casual', // Default to casual (Annual Leave)
       dates: Array.isArray(leaveData.dates) ? leaveData.dates : [],
       reason: leaveData.reason || '',
       status: 'pending',
@@ -294,7 +294,7 @@ async function createLeave(leaveData) {
   const leave = {
     id: memDb.nextLeaveId++,
     user_id: leaveData.user_id,
-    leave_type: leaveData.leave_type,
+    leave_type: leaveData.leave_type || 'casual', // Default to casual (Annual Leave)
     dates: Array.isArray(leaveData.dates) ? leaveData.dates : [],
     reason: leaveData.reason || '',
     status: 'pending',

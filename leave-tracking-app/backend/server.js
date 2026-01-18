@@ -109,7 +109,7 @@ app.post('/api/leaves', async (req, res) => {
 
     const leave = {
       user_id: userId,
-      leave_type: leave_type,
+      leave_type: leave_type || 'casual', // Default to casual (Annual Leave)
       dates: Array.isArray(dates) ? dates : [],
       reason: reason || '',
       status: 'pending',
