@@ -65,7 +65,8 @@ function AdminDashboard() {
 
   const handleStatusUpdate = async (leaveId, status) => {
     try {
-      await axios.patch(`/api/leaves/${leaveId}/status`, { status })
+      // Use the leaves-status endpoint that accepts ID in body
+      await axios.patch('/api/leaves-status', { id: leaveId, status })
       fetchData()
     } catch (err) {
       console.error('Error updating status:', err)
