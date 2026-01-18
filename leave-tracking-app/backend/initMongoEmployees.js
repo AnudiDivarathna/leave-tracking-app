@@ -11,10 +11,10 @@ if (!MONGODB_URI) {
 }
 
 const defaultEmployees = [
-  { name: 'Anudi', role: 'employee', created_at: new Date() },
-  { name: 'Savindi', role: 'employee', created_at: new Date() },
-  { name: 'Senaka', role: 'employee', created_at: new Date() },
-  { name: 'Apsara', role: 'employee', created_at: new Date() }
+  { name: 'Anudi Divarathna', role: 'employee', created_at: new Date() },
+  { name: 'Savindi Divarathna', role: 'employee', created_at: new Date() },
+  { name: 'Senaka Divarathna', role: 'employee', created_at: new Date() },
+  { name: 'Apsara Divarathna', role: 'employee', created_at: new Date() }
 ];
 
 async function initializeEmployees() {

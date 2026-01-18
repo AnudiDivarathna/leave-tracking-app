@@ -45,10 +45,10 @@ async function initializeDefaultEmployees() {
   const usersCollection = db.collection('users');
   
   const defaultEmployees = [
-    { name: 'Anudi', role: 'employee', created_at: new Date() },
-    { name: 'Savindi', role: 'employee', created_at: new Date() },
-    { name: 'Senaka', role: 'employee', created_at: new Date() },
-    { name: 'Apsara', role: 'employee', created_at: new Date() }
+    { name: 'Anudi Divarathna', role: 'employee', created_at: new Date() },
+    { name: 'Savindi Divarathna', role: 'employee', created_at: new Date() },
+    { name: 'Senaka Divarathna', role: 'employee', created_at: new Date() },
+    { name: 'Apsara Divarathna', role: 'employee', created_at: new Date() }
   ];
   
   // Check which employees already exist
@@ -205,6 +205,38 @@ app.patch('/api/leaves/:id/status', async (req, res) => {
     res.json({ message: `Leave ${status} successfully` });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ============== CLEAR LEAVES ROUTE ==============
+
+// Clear all leaves data (keeps employees)
+app.delete('/api/clear-leaves', async (req, res) => {
+  try {
+    const result = await db.collection('leaves').deleteMany({});
+    console.log(`Cleared ${result.deletedCount} leaves from database`);
+    res.json({ 
+      message: 'All leaves data cleared successfully',
+      deletedCount: result.deletedCount
+    });
+  } catch (err) {
+    console.error('Error clearing leaves:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// Also accept POST for flexibility
+app.post('/api/clear-leaves', async (req, res) => {
+  try {
+    const result = await db.collection('leaves').deleteMany({});
+    console.log(`Cleared ${result.deletedCount} leaves from database`);
+    res.json({ 
+      message: 'All leaves data cleared successfully',
+      deletedCount: result.deletedCount
+    });
+  } catch (err) {
+    console.error('Error clearing leaves:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 

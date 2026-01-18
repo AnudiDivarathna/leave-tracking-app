@@ -34,10 +34,10 @@ async function initDatabase() {
 
   // Initial employees - 4 for now, will add 34 real names later
   const employees = [
-    'Anudi',
-    'Savindi', 
-    'Senaka',
-    'Apsara'
+    'Anudi Divarathna',
+    'Savindi Divarathna', 
+    'Senaka Divarathna',
+    'Apsara Divarathna'
   ];
 
   // Insert employees

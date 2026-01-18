@@ -69,13 +69,24 @@ async function initializeDefaultEmployees() {
 
     if (count === 0) {
       const defaultEmployees = [
-        { name: 'Anudi', role: 'employee', created_at: new Date() },
-        { name: 'Savindi', role: 'employee', created_at: new Date() },
-        { name: 'Senaka', role: 'employee', created_at: new Date() },
-        { name: 'Apsara', role: 'employee', created_at: new Date() }
+        { name: 'Anudi Divarathna', role: 'employee', created_at: new Date() },
+        { name: 'Savindi Divarathna', role: 'employee', created_at: new Date() },
+        { name: 'Senaka Divarathna', role: 'employee', created_at: new Date() },
+        { name: 'Apsara Divarathna', role: 'employee', created_at: new Date() }
       ];
       await usersCollection.insertMany(defaultEmployees);
       console.log('Default employees initialized');
+    } else {
+      // Update existing employees to add surname if they don't have it
+      const existingEmployees = await usersCollection.find({ role: 'employee' }).toArray();
+      for (const emp of existingEmployees) {
+        if (!emp.name.includes('Divarathna')) {
+          await usersCollection.updateOne(
+            { _id: emp._id },
+            { $set: { name: `${emp.name} Divarathna` } }
+          );
+        }
+      }
     }
   } catch (err) {
     console.error('Error initializing default employees:', err.message);
@@ -91,10 +102,10 @@ function initMemoryDB() {
 
   memoryDb = {
     users: [
-      { id: 1, name: 'Anudi', role: 'employee', created_at: new Date().toISOString() },
-      { id: 2, name: 'Savindi', role: 'employee', created_at: new Date().toISOString() },
-      { id: 3, name: 'Senaka', role: 'employee', created_at: new Date().toISOString() },
-      { id: 4, name: 'Apsara', role: 'employee', created_at: new Date().toISOString() }
+      { id: 1, name: 'Anudi Divarathna', role: 'employee', created_at: new Date().toISOString() },
+      { id: 2, name: 'Savindi Divarathna', role: 'employee', created_at: new Date().toISOString() },
+      { id: 3, name: 'Senaka Divarathna', role: 'employee', created_at: new Date().toISOString() },
+      { id: 4, name: 'Apsara Divarathna', role: 'employee', created_at: new Date().toISOString() }
     ],
     leaves: [],
     nextUserId: 5,

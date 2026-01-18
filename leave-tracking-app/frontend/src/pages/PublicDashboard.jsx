@@ -247,7 +247,7 @@ function PublicDashboard() {
 
   const formatLeaveType = (type) => {
     const types = {
-      'casual': 'Casual',
+      'casual': 'Annual Leave',
       'medical': 'Medical',
       'halfday': 'Half Day',
       'short': 'Short'
@@ -403,7 +403,7 @@ function PublicDashboard() {
                     required
                   >
                     <option value="">Select leave type...</option>
-                    <option value="casual">Casual Leave</option>
+                    <option value="casual">Annual Leave</option>
                     <option value="medical">Medical Leave</option>
                     <option value="halfday">Half Day Leave</option>
                     <option value="short">Short Leave</option>

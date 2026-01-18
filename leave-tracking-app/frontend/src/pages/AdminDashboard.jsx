@@ -110,7 +110,7 @@ function AdminDashboard() {
 
   const formatLeaveType = (type) => {
     const types = {
-      'casual': 'Casual',
+      'casual': 'Annual Leave',
       'medical': 'Medical',
       'halfday': 'Half Day',
       'short': 'Short'
@@ -504,7 +504,7 @@ function AdminDashboard() {
                     <div className="leave-stats">
                       <div className="leave-stat">
                         <div className="leave-stat-value">{employee.casual_leaves || 0}</div>
-                        <div className="leave-stat-label">Casual</div>
+                        <div className="leave-stat-label">Annual Leave</div>
                       </div>
                       <div className="leave-stat">
                         <div className="leave-stat-value">{employee.medical_leaves || 0}</div>
