@@ -7,7 +7,11 @@ let db = null;
 
 // MongoDB connection
 async function getMongoClient() {
-  if (client) return client;
+  // In serverless, reuse existing connection if available
+  // MongoDB driver handles reconnection automatically
+  if (client) {
+    return client;
+  }
 
   const uri = process.env.MONGODB_URI;
   
@@ -17,41 +21,65 @@ async function getMongoClient() {
   }
 
   try {
-    client = new MongoClient(uri);
+    client = new MongoClient(uri, {
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      maxPoolSize: 1, // Important for serverless - reuse single connection
+      minPoolSize: 0
+    });
     await client.connect();
+    console.log('MongoDB connected successfully');
     return client;
   } catch (err) {
-    console.error('MongoDB connection error:', err);
+    console.error('MongoDB connection error:', err.message, err.stack);
+    client = null;
+    db = null;
     return null;
   }
 }
 
 async function getDatabase() {
-  if (db) return db;
+  // In serverless, connections are reused but might timeout
+  // Just return existing db if available, let operations fail gracefully if needed
+  if (db) {
+    return db;
+  }
 
   const mongoClient = await getMongoClient();
   if (!mongoClient) return null;
 
-  db = mongoClient.db('leave_tracker');
-  return db;
+  try {
+    db = mongoClient.db('leave_tracker');
+    return db;
+  } catch (err) {
+    console.error('Error accessing database:', err.message);
+    db = null;
+    return null;
+  }
 }
 
 // Initialize default employees if they don't exist
 async function initializeDefaultEmployees() {
-  const database = await getDatabase();
-  if (!database) return;
+  try {
+    const database = await getDatabase();
+    if (!database) return;
 
-  const usersCollection = database.collection('users');
-  const count = await usersCollection.countDocuments();
+    const usersCollection = database.collection('users');
+    const count = await usersCollection.countDocuments();
 
-  if (count === 0) {
-    const defaultEmployees = [
-      { name: 'Anudi', role: 'employee', created_at: new Date() },
-      { name: 'Savindi', role: 'employee', created_at: new Date() },
-      { name: 'Senaka', role: 'employee', created_at: new Date() },
-      { name: 'Apsara', role: 'employee', created_at: new Date() }
-    ];
-    await usersCollection.insertMany(defaultEmployees);
+    if (count === 0) {
+      const defaultEmployees = [
+        { name: 'Anudi', role: 'employee', created_at: new Date() },
+        { name: 'Savindi', role: 'employee', created_at: new Date() },
+        { name: 'Senaka', role: 'employee', created_at: new Date() },
+        { name: 'Apsara', role: 'employee', created_at: new Date() }
+      ];
+      await usersCollection.insertMany(defaultEmployees);
+      console.log('Default employees initialized');
+    }
+  } catch (err) {
+    console.error('Error initializing default employees:', err.message);
+    // Don't throw - allow function to continue with fallback
   }
 }
 
@@ -321,64 +349,101 @@ async function updateLeaveStatus(id, status) {
 }
 
 async function getStats() {
-  const database = await getDatabase();
-  let employees = [];
-  let leaves = [];
+  try {
+    const database = await getDatabase();
+    let employees = [];
+    let leaves = [];
 
-  if (database) {
-    employees = await getEmployees();
-    leaves = await database.collection('leaves').find({}).toArray();
-  } else {
-    const memDb = initMemoryDB();
-    employees = await getEmployees();
-    leaves = memDb.leaves;
-  }
-
-  return {
-    totalEmployees: employees.length,
-    totalLeaves: leaves.length,
-    pendingLeaves: leaves.filter(l => l.status === 'pending').length,
-    approvedLeaves: leaves.filter(l => l.status === 'approved').length,
-    rejectedLeaves: leaves.filter(l => l.status === 'rejected').length,
-    leaveTypeBreakdown: {
-      casual: leaves.filter(l => l.leave_type === 'casual').length,
-      medical: leaves.filter(l => l.leave_type === 'medical').length,
-      halfday: leaves.filter(l => l.leave_type === 'halfday').length,
-      short: leaves.filter(l => l.leave_type === 'short').length
+    if (database) {
+      try {
+        employees = await getEmployees();
+        leaves = await database.collection('leaves').find({}).toArray();
+      } catch (dbErr) {
+        console.error('Error fetching from MongoDB, falling back to memory:', dbErr.message);
+        const memDb = initMemoryDB();
+        employees = await getEmployees();
+        leaves = memDb.leaves;
+      }
+    } else {
+      const memDb = initMemoryDB();
+      employees = await getEmployees();
+      leaves = memDb.leaves;
     }
-  };
+
+    return {
+      totalEmployees: employees.length,
+      totalLeaves: leaves.length,
+      pendingLeaves: leaves.filter(l => l.status === 'pending').length,
+      approvedLeaves: leaves.filter(l => l.status === 'approved').length,
+      rejectedLeaves: leaves.filter(l => l.status === 'rejected').length,
+      leaveTypeBreakdown: {
+        casual: leaves.filter(l => l.leave_type === 'casual').length,
+        medical: leaves.filter(l => l.leave_type === 'medical').length,
+        halfday: leaves.filter(l => l.leave_type === 'halfday').length,
+        short: leaves.filter(l => l.leave_type === 'short').length
+      }
+    };
+  } catch (err) {
+    console.error('Error in getStats:', err);
+    // Return default stats on error
+    return {
+      totalEmployees: 0,
+      totalLeaves: 0,
+      pendingLeaves: 0,
+      approvedLeaves: 0,
+      rejectedLeaves: 0,
+      leaveTypeBreakdown: {
+        casual: 0,
+        medical: 0,
+        halfday: 0,
+        short: 0
+      }
+    };
+  }
 }
 
 async function getEmployeeStats() {
-  const employees = await getEmployees();
-  const database = await getDatabase();
-  let leaves = [];
+  try {
+    const employees = await getEmployees();
+    const database = await getDatabase();
+    let leaves = [];
 
-  if (database) {
-    leaves = await database.collection('leaves').find({}).toArray();
-  } else {
-    const memDb = initMemoryDB();
-    leaves = memDb.leaves;
-  }
+    if (database) {
+      try {
+        leaves = await database.collection('leaves').find({}).toArray();
+      } catch (dbErr) {
+        console.error('Error fetching leaves from MongoDB, falling back to memory:', dbErr.message);
+        const memDb = initMemoryDB();
+        leaves = memDb.leaves;
+      }
+    } else {
+      const memDb = initMemoryDB();
+      leaves = memDb.leaves;
+    }
 
-  return employees.map(emp => {
-    const empLeaves = leaves.filter(l => {
-      const leaveUserId = l.user_id?.toString() || l.user_id;
-      return leaveUserId === emp.id.toString();
+    return employees.map(emp => {
+      const empLeaves = leaves.filter(l => {
+        const leaveUserId = l.user_id?.toString() || l.user_id;
+        return leaveUserId === emp.id.toString();
+      });
+      
+      return {
+        id: emp.id.toString(),
+        name: emp.name,
+        total_leaves: empLeaves.length,
+        approved_leaves: empLeaves.filter(l => l.status === 'approved').length,
+        pending_leaves: empLeaves.filter(l => l.status === 'pending').length,
+        casual_leaves: empLeaves.filter(l => l.leave_type === 'casual').length,
+        medical_leaves: empLeaves.filter(l => l.leave_type === 'medical').length,
+        halfday_leaves: empLeaves.filter(l => l.leave_type === 'halfday').length,
+        short_leaves: empLeaves.filter(l => l.leave_type === 'short').length
+      };
     });
-    
-    return {
-      id: emp.id.toString(),
-      name: emp.name,
-      total_leaves: empLeaves.length,
-      approved_leaves: empLeaves.filter(l => l.status === 'approved').length,
-      pending_leaves: empLeaves.filter(l => l.status === 'pending').length,
-      casual_leaves: empLeaves.filter(l => l.leave_type === 'casual').length,
-      medical_leaves: empLeaves.filter(l => l.leave_type === 'medical').length,
-      halfday_leaves: empLeaves.filter(l => l.leave_type === 'halfday').length,
-      short_leaves: empLeaves.filter(l => l.leave_type === 'short').length
-    };
-  });
+  } catch (err) {
+    console.error('Error in getEmployeeStats:', err);
+    // Return empty array on error
+    return [];
+  }
 }
 
 module.exports = {

@@ -1,5 +1,5 @@
 // GET /api/stats/employees
-const { getEmployeeStats } = require('../../db');
+const { getEmployeeStats } = require('../db');
 
 module.exports = async (req, res) => {
   // Enable CORS
@@ -19,6 +19,11 @@ module.exports = async (req, res) => {
     const stats = await getEmployeeStats();
     res.json(stats);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error in /api/stats/employees:', err);
+    console.error('Stack trace:', err.stack);
+    res.status(500).json({ 
+      error: err.message || 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 };
