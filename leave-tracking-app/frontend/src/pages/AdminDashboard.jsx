@@ -349,6 +349,7 @@ function AdminDashboard() {
                         <th>Employee</th>
                         <th>Selected Dates</th>
                         <th>Applied On</th>
+                        <th>Covering Officer</th>
                         <th>Reason</th>
                         <th>Actions</th>
                       </tr>
@@ -367,6 +368,9 @@ function AdminDashboard() {
                           </td>
                           <td>
                             <span className="applied-date-text">{formatDateTime(leave.applied_at)}</span>
+                          </td>
+                          <td>
+                            <span className="reason-text">{leave.covering_officer || '-'}</span>
                           </td>
                           <td>
                             <span className="reason-text">{leave.reason || '-'}</span>
@@ -411,6 +415,12 @@ function AdminDashboard() {
                       <div className="pending-card-dates-mobile">
                         {renderDatesWithTooltip(leave.dates, 3, `pending-mobile-${leave.id}`)}
                       </div>
+
+                      {leave.covering_officer && (
+                        <div className="pending-reason-mobile">
+                          <strong>Covering Officer:</strong> {leave.covering_officer}
+                        </div>
+                      )}
 
                       {leave.reason && (
                         <div className="pending-reason-mobile">

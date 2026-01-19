@@ -67,48 +67,24 @@ async function initializeDefaultEmployees() {
     const usersCollection = database.collection('users');
     const count = await usersCollection.countDocuments();
 
-    if (count === 0) {
-      const defaultEmployees = [
-        { name: 'Anudi Divarathna', role: 'employee', created_at: new Date() },
-        { name: 'Savindi Divarathna', role: 'employee', created_at: new Date() },
-        { name: 'Senaka Divarathna', role: 'employee', created_at: new Date() },
-        { name: 'Apsara Divarathna', role: 'employee', created_at: new Date() }
-      ];
-      await usersCollection.insertMany(defaultEmployees);
-      console.log('Default employees initialized');
-    } else {
-      // Update existing employees to add surname if they don't have it
-      const existingEmployees = await usersCollection.find({ role: 'employee' }).toArray();
-      for (const emp of existingEmployees) {
-        if (!emp.name.includes('Divarathna')) {
-          await usersCollection.updateOne(
-            { _id: emp._id },
-            { $set: { name: `${emp.name} Divarathna` } }
-          );
-        }
-      }
-    }
+    // Don't auto-initialize employees - use initMongoEmployees.js script instead
+    // This prevents adding test employees automatically
   } catch (err) {
     console.error('Error initializing default employees:', err.message);
     // Don't throw - allow function to continue with fallback
   }
 }
 
-// In-memory fallback
+// In-memory fallback - empty by default, only used if MongoDB connection fails
 let memoryDb = null;
 
 function initMemoryDB() {
   if (memoryDb) return memoryDb;
 
   memoryDb = {
-    users: [
-      { id: 1, name: 'Anudi Divarathna', role: 'employee', created_at: new Date().toISOString() },
-      { id: 2, name: 'Savindi Divarathna', role: 'employee', created_at: new Date().toISOString() },
-      { id: 3, name: 'Senaka Divarathna', role: 'employee', created_at: new Date().toISOString() },
-      { id: 4, name: 'Apsara Divarathna', role: 'employee', created_at: new Date().toISOString() }
-    ],
+    users: [], // Empty - employees should come from MongoDB only
     leaves: [],
-    nextUserId: 5,
+    nextUserId: 1,
     nextLeaveId: 1
   };
 
@@ -125,6 +101,7 @@ async function getEmployees() {
     return users.map(u => ({
       id: u._id.toString(),
       name: u.name,
+      paysheet_number: u.paysheet_number || null,
       role: u.role,
       created_at: u.created_at
     }));
@@ -135,6 +112,7 @@ async function getEmployees() {
   return memDb.users.filter(u => u.role === 'employee').map(u => ({
     id: u.id.toString(),
     name: u.name,
+    paysheet_number: u.paysheet_number || null,
     role: u.role,
     created_at: u.created_at
   }));
@@ -191,6 +169,7 @@ async function getAllLeaves() {
         leave_type: leave.leave_type,
         dates: Array.isArray(leave.dates) ? leave.dates : (leave.dates ? JSON.parse(leave.dates) : []),
         reason: leave.reason || '',
+        covering_officer: leave.covering_officer || null,
         status: leave.status,
         applied_at: leave.applied_at,
         updated_at: leave.updated_at,
@@ -226,6 +205,7 @@ async function getLeaveById(id) {
         leave_type: leave.leave_type,
         dates: Array.isArray(leave.dates) ? leave.dates : (leave.dates ? JSON.parse(leave.dates) : []),
         reason: leave.reason || '',
+        covering_officer: leave.covering_officer || null,
         status: leave.status,
         applied_at: leave.applied_at,
         updated_at: leave.updated_at,
@@ -271,6 +251,7 @@ async function createLeave(leaveData) {
       leave_type: leaveData.leave_type || 'casual', // Default to casual (Annual Leave)
       dates: Array.isArray(leaveData.dates) ? leaveData.dates : [],
       reason: leaveData.reason || '',
+      covering_officer: leaveData.covering_officer || null,
       status: 'pending',
       applied_at: new Date(),
       updated_at: new Date()
@@ -297,6 +278,7 @@ async function createLeave(leaveData) {
     leave_type: leaveData.leave_type || 'casual', // Default to casual (Annual Leave)
     dates: Array.isArray(leaveData.dates) ? leaveData.dates : [],
     reason: leaveData.reason || '',
+    covering_officer: leaveData.covering_officer || null,
     status: 'pending',
     applied_at: new Date().toISOString(),
     updated_at: new Date().toISOString()

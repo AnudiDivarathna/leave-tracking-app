@@ -41,33 +41,20 @@ async function initDB() {
 }
 
 // Initialize default employees
+// Note: Use initMongoEmployees.js script to add production employees
+// This function is kept for backward compatibility but won't auto-add test employees
 async function initializeDefaultEmployees() {
   const usersCollection = db.collection('users');
   
-  const defaultEmployees = [
-    { name: 'Anudi Divarathna', role: 'employee', created_at: new Date() },
-    { name: 'Savindi Divarathna', role: 'employee', created_at: new Date() },
-    { name: 'Senaka Divarathna', role: 'employee', created_at: new Date() },
-    { name: 'Apsara Divarathna', role: 'employee', created_at: new Date() }
-  ];
-  
-  // Check which employees already exist
-  const existingEmployees = await usersCollection.find({ role: 'employee' }).toArray();
-  const existingNames = existingEmployees.map(e => e.name);
-  
-  // Find employees that don't exist yet
-  const employeesToAdd = defaultEmployees.filter(emp => !existingNames.includes(emp.name));
-  
-  if (employeesToAdd.length > 0) {
-    await usersCollection.insertMany(employeesToAdd);
-    console.log(`✅ Added ${employeesToAdd.length} default employees: ${employeesToAdd.map(e => e.name).join(', ')}`);
-  } else {
-    console.log('✅ All default employees already exist');
-  }
+  // Don't auto-initialize employees - use initMongoEmployees.js script instead
+  // This prevents adding test employees automatically
   
   // Show all employees
   const allEmployees = await usersCollection.find({ role: 'employee' }).toArray();
-  console.log(`📋 Total employees: ${allEmployees.length} - ${allEmployees.map(e => e.name).join(', ')}`);
+  console.log(`📋 Total employees: ${allEmployees.length}`);
+  if (allEmployees.length > 0) {
+    console.log(`Employees: ${allEmployees.map(e => e.name).join(', ')}`);
+  }
 }
 
 // Middleware
@@ -86,7 +73,8 @@ app.get('/api/employees', async (req, res) => {
     const users = await db.collection('users').find({ role: 'employee' }).toArray();
     const employees = users.map(u => ({
       id: u._id.toString(),
-      name: u.name
+      name: u.name,
+      paysheet_number: u.paysheet_number || null
     }));
     res.json(employees);
   } catch (err) {
@@ -98,7 +86,7 @@ app.get('/api/employees', async (req, res) => {
 
 // Apply for leave (public)
 app.post('/api/leaves', async (req, res) => {
-  const { user_id, leave_type, dates, reason } = req.body;
+  const { user_id, leave_type, dates, reason, covering_officer } = req.body;
 
   try {
     // Convert user_id to ObjectId if it's a valid MongoDB ObjectId string
@@ -112,6 +100,7 @@ app.post('/api/leaves', async (req, res) => {
       leave_type: leave_type || 'casual', // Default to casual (Annual Leave)
       dates: Array.isArray(dates) ? dates : [],
       reason: reason || '',
+      covering_officer: covering_officer || null,
       status: 'pending',
       applied_at: new Date(),
       updated_at: new Date()
@@ -154,6 +143,7 @@ app.get('/api/leaves', async (req, res) => {
             leave_type: 1,
             dates: 1,
             reason: 1,
+            covering_officer: 1,
             status: 1,
             applied_at: 1,
             updated_at: 1,

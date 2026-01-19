@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
 
   // POST /api/leaves
   if (req.method === 'POST') {
-    const { user_id, leave_type, dates, reason } = req.body;
+    const { user_id, leave_type, dates, reason, covering_officer } = req.body;
 
     if (!user_id || !dates || !Array.isArray(dates)) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -40,7 +40,8 @@ module.exports = async (req, res) => {
         user_id, 
         leave_type: leave_type || 'casual', // Default to casual (Annual Leave)
         dates, 
-        reason 
+        reason,
+        covering_officer
       });
       res.status(201).json({
         id: leave.id,

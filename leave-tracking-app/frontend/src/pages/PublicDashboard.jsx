@@ -25,13 +25,19 @@ function PublicDashboard() {
   const [formData, setFormData] = useState({
     employee_name: '',
     dates: [],
-    reason: ''
+    reason: '',
+    covering_officer: ''
   })
 
-  // Autocomplete state
+  // Autocomplete state for employee name
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [filteredEmployees, setFilteredEmployees] = useState([])
   const inputRef = useRef(null)
+
+  // Autocomplete state for covering officer
+  const [showCoveringSuggestions, setShowCoveringSuggestions] = useState(false)
+  const [filteredCoveringOfficers, setFilteredCoveringOfficers] = useState([])
+  const coveringInputRef = useRef(null)
 
   // Date picker state
   const [dateConflicts, setDateConflicts] = useState({})
@@ -144,18 +150,31 @@ function PublicDashboard() {
     setMessage({ type: '', text: '' })
 
     try {
+      // Find covering officer if provided
+      let coveringOfficerId = null
+      if (formData.covering_officer) {
+        const coveringOfficer = employees.find(emp => 
+          emp.name.toLowerCase() === formData.covering_officer.toLowerCase()
+        )
+        if (coveringOfficer) {
+          coveringOfficerId = coveringOfficer.id
+        }
+      }
+
       await axios.post('/api/leaves', {
         user_id: employee.id,
         leave_type: 'casual', // Default to casual (Annual Leave)
         dates: formData.dates,
-        reason: formData.reason
+        reason: formData.reason,
+        covering_officer: formData.covering_officer || null
       })
       
       setMessage({ type: 'success', text: 'Leave application submitted successfully!' })
       setFormData({
         employee_name: '',
         dates: [],
-        reason: ''
+        reason: '',
+        covering_officer: ''
       })
       
       // Refresh data
@@ -172,14 +191,34 @@ function PublicDashboard() {
     setFormData(prev => ({ ...prev, employee_name: value }))
     
     if (value.length > 0) {
-      const filtered = employees.filter(emp =>
-        emp.name.toLowerCase().includes(value.toLowerCase())
-      )
+      const filtered = employees.filter(emp => {
+        const nameMatch = emp.name.toLowerCase().includes(value.toLowerCase())
+        const paysheetMatch = emp.paysheet_number && emp.paysheet_number.includes(value)
+        return nameMatch || paysheetMatch
+      })
       setFilteredEmployees(filtered)
       setShowSuggestions(true)
     } else {
       setFilteredEmployees([])
       setShowSuggestions(false)
+    }
+  }
+
+  const handleCoveringOfficerChange = (e) => {
+    const value = e.target.value
+    setFormData(prev => ({ ...prev, covering_officer: value }))
+    
+    if (value.length > 0) {
+      const filtered = employees.filter(emp => {
+        const nameMatch = emp.name.toLowerCase().includes(value.toLowerCase())
+        const paysheetMatch = emp.paysheet_number && emp.paysheet_number.includes(value)
+        return nameMatch || paysheetMatch
+      })
+      setFilteredCoveringOfficers(filtered)
+      setShowCoveringSuggestions(true)
+    } else {
+      setFilteredCoveringOfficers([])
+      setShowCoveringSuggestions(false)
     }
   }
 
@@ -194,6 +233,11 @@ function PublicDashboard() {
   const selectEmployee = (name) => {
     setFormData(prev => ({ ...prev, employee_name: name }))
     setShowSuggestions(false)
+  }
+
+  const selectCoveringOfficer = (name) => {
+    setFormData(prev => ({ ...prev, covering_officer: name }))
+    setShowCoveringSuggestions(false)
   }
 
   const checkDateConflicts = () => {
@@ -423,7 +467,7 @@ function PublicDashboard() {
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="Type to search and select from list..."
+                      placeholder="Enter name or paysheet number to select..."
                       value={formData.employee_name}
                       onChange={handleNameChange}
                       onFocus={() => formData.employee_name && setShowSuggestions(true)}
@@ -439,7 +483,12 @@ function PublicDashboard() {
                             className="autocomplete-item"
                             onClick={() => selectEmployee(emp.name)}
                           >
-                            {emp.name}
+                            <span>{emp.name}</span>
+                            {emp.paysheet_number && (
+                              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
+                                ({emp.paysheet_number})
+                              </span>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -452,7 +501,49 @@ function PublicDashboard() {
                       </div>
                     )}
                   </div>
-                  <p className="form-hint">Start typing and select your name from the suggestions</p>
+                  <p className="form-hint">Enter name or paysheet number to search and select from the suggestions</p>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Covering Officer (Optional)</label>
+                  <div className="autocomplete-wrapper">
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Enter name or paysheet number to select..."
+                      value={formData.covering_officer}
+                      onChange={handleCoveringOfficerChange}
+                      onFocus={() => formData.covering_officer && setShowCoveringSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowCoveringSuggestions(false), 200)}
+                      ref={coveringInputRef}
+                    />
+                    {showCoveringSuggestions && filteredCoveringOfficers.length > 0 && (
+                      <div className="autocomplete-dropdown">
+                        {filteredCoveringOfficers.map(emp => (
+                          <div 
+                            key={emp.id} 
+                            className="autocomplete-item"
+                            onClick={() => selectCoveringOfficer(emp.name)}
+                          >
+                            <span>{emp.name}</span>
+                            {emp.paysheet_number && (
+                              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
+                                ({emp.paysheet_number})
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {formData.covering_officer && filteredCoveringOfficers.length === 0 && (
+                      <div className="autocomplete-dropdown">
+                        <div className="autocomplete-no-match">
+                          No matching name found. Please select from the list.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="form-hint">Enter name or paysheet number to search and select covering officer</p>
                 </div>
 
                 <div className="form-group">
