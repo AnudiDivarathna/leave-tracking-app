@@ -1,6 +1,6 @@
 // PATCH /api/leaves-status
 // Alternative route structure for Vercel compatibility
-const { getLeaveById, updateLeaveStatus } = require('./db');
+const { updateLeaveStatus } = require('./db');
 
 module.exports = async (req, res) => {
   // Enable CORS
@@ -33,32 +33,18 @@ module.exports = async (req, res) => {
   }
 
   try {
-    console.log('Status update request:', { id, status, method: req.method });
+    console.log('Status update request:', { id, status });
     
-    // For MongoDB, we need to convert string ID to ObjectId if needed
-    const { ObjectId } = require('mongodb');
-    let leaveId = id;
+    // Pass string ID directly - let updateLeaveStatus handle conversion
+    const result = await updateLeaveStatus(id, status);
     
-    // Try to convert to ObjectId if it's a valid MongoDB ObjectId format
-    try {
-      if (ObjectId.isValid(id)) {
-        leaveId = new ObjectId(id);
-      }
-    } catch (e) {
-      // If not valid ObjectId, use as string (for memory fallback)
-      leaveId = id;
-    }
-
-    const leave = await getLeaveById(leaveId);
-    
-    if (!leave) {
-      console.error('Leave not found:', id);
+    if (!result) {
+      console.error('Leave not found or update failed:', id);
       return res.status(404).json({ error: 'Leave not found' });
     }
 
-    await updateLeaveStatus(leaveId, status);
     console.log('Status updated successfully:', { id, status });
-    res.json({ message: `Leave ${status} successfully` });
+    res.json({ message: `Leave ${status} successfully`, leave: result });
   } catch (err) {
     console.error('Error updating leave status:', err);
     res.status(500).json({ error: err.message || 'Internal server error' });

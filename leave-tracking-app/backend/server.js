@@ -168,7 +168,44 @@ app.get('/api/leaves', async (req, res) => {
   }
 });
 
-// Approve/Reject leave (admin)
+// Approve/Reject leave (admin) - alternative route with ID in body
+app.patch('/api/leaves-status', async (req, res) => {
+  const { id, status } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: 'Leave ID is required' });
+  }
+
+  if (!status || !['approved', 'rejected'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status. Must be "approved" or "rejected"' });
+  }
+
+  try {
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid leave ID' });
+    }
+
+    const result = await db.collection('leaves').updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          status: status,
+          updated_at: new Date()
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Leave not found' });
+    }
+
+    res.json({ message: `Leave ${status} successfully` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Approve/Reject leave (admin) - original route with ID in URL
 app.patch('/api/leaves/:id/status', async (req, res) => {
   const { status } = req.body;
   const leaveId = req.params.id;
@@ -341,6 +378,9 @@ app.get('/api/stats/employees', async (req, res) => {
               }
             }
           }
+        },
+        {
+          $match: { total_leaves: { $gt: 0 } } // Only include employees who have taken leaves
         },
         {
           $sort: { name: 1 }

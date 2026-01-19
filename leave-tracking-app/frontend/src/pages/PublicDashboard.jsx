@@ -139,6 +139,22 @@ function PublicDashboard() {
       return
     }
 
+    // Validate covering officer is provided
+    if (!formData.covering_officer) {
+      setMessage({ type: 'error', text: 'Please select a covering officer' })
+      return
+    }
+
+    // Find covering officer
+    const coveringOfficer = employees.find(emp => 
+      emp.name.toLowerCase() === formData.covering_officer.toLowerCase()
+    )
+
+    if (!coveringOfficer) {
+      setMessage({ type: 'error', text: 'Covering officer not found! Please select a valid name from the suggestions.' })
+      return
+    }
+
     // Validate all dates are not past
     const invalidDates = formData.dates.filter(date => !isValidDate(date))
     if (invalidDates.length > 0) {
@@ -150,23 +166,13 @@ function PublicDashboard() {
     setMessage({ type: '', text: '' })
 
     try {
-      // Find covering officer if provided
-      let coveringOfficerId = null
-      if (formData.covering_officer) {
-        const coveringOfficer = employees.find(emp => 
-          emp.name.toLowerCase() === formData.covering_officer.toLowerCase()
-        )
-        if (coveringOfficer) {
-          coveringOfficerId = coveringOfficer.id
-        }
-      }
 
       await axios.post('/api/leaves', {
         user_id: employee.id,
         leave_type: 'casual', // Default to casual (Annual Leave)
         dates: formData.dates,
         reason: formData.reason,
-        covering_officer: formData.covering_officer || null
+        covering_officer: formData.covering_officer
       })
       
       setMessage({ type: 'success', text: 'Leave application submitted successfully!' })
@@ -414,7 +420,7 @@ function PublicDashboard() {
       <header className="public-header">
         <div className="header-content">
           <div className="header-logo">
-            <Building2 size={28} />
+            <img src="/logo.png" alt="Government of Sri Lanka" />
           </div>
           <div className="header-text">
             <span className="header-dept">Department Of Physiotherapy</span>
@@ -462,12 +468,12 @@ function PublicDashboard() {
 
               <form onSubmit={handleSubmit}>
                 <div className="form-group">
-                  <label className="form-label">Select the Name</label>
+                  <label className="form-label">Name of the Physio Therapist</label>
                   <div className="autocomplete-wrapper">
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="Enter name or paysheet number to select..."
+                      placeholder="Enter Name/ Paysheet No to select"
                       value={formData.employee_name}
                       onChange={handleNameChange}
                       onFocus={() => formData.employee_name && setShowSuggestions(true)}
@@ -501,21 +507,21 @@ function PublicDashboard() {
                       </div>
                     )}
                   </div>
-                  <p className="form-hint">Enter name or paysheet number to search and select from the suggestions</p>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Covering Officer (Optional)</label>
+                  <label className="form-label">Covering Officer</label>
                   <div className="autocomplete-wrapper">
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="Enter name or paysheet number to select..."
+                      placeholder="Enter Name/ Paysheet No to select"
                       value={formData.covering_officer}
                       onChange={handleCoveringOfficerChange}
                       onFocus={() => formData.covering_officer && setShowCoveringSuggestions(true)}
                       onBlur={() => setTimeout(() => setShowCoveringSuggestions(false), 200)}
                       ref={coveringInputRef}
+                      required
                     />
                     {showCoveringSuggestions && filteredCoveringOfficers.length > 0 && (
                       <div className="autocomplete-dropdown">
@@ -543,7 +549,6 @@ function PublicDashboard() {
                       </div>
                     )}
                   </div>
-                  <p className="form-hint">Enter name or paysheet number to search and select covering officer</p>
                 </div>
 
                 <div className="form-group">

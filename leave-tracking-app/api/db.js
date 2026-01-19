@@ -291,17 +291,25 @@ async function updateLeaveStatus(id, status) {
   const database = await getDatabase();
   const { ObjectId } = require('mongodb');
 
-  // Convert to ObjectId if it's a valid MongoDB ObjectId, otherwise use as string
-  let queryId = id;
-  if (database && ObjectId.isValid(id)) {
+  if (database) {
+    // Convert string ID to ObjectId - handle both string and ObjectId inputs
+    let queryId;
     try {
-      queryId = new ObjectId(id);
+      // If id is already an ObjectId, use it directly
+      if (id instanceof ObjectId) {
+        queryId = id;
+      } else if (typeof id === 'string' && ObjectId.isValid(id)) {
+        queryId = new ObjectId(id);
+      } else {
+        queryId = id;
+      }
     } catch (e) {
+      console.error('ObjectId conversion error:', e);
       queryId = id;
     }
-  }
 
-  if (database) {
+    console.log('Updating leave status:', { originalId: id, queryId: queryId.toString(), status });
+
     const result = await database.collection('leaves').updateOne(
       { _id: queryId },
       { 
@@ -311,6 +319,8 @@ async function updateLeaveStatus(id, status) {
         }
       }
     );
+
+    console.log('Update result:', { matchedCount: result.matchedCount, modifiedCount: result.modifiedCount });
 
     if (result.matchedCount === 0) {
       return null;
@@ -414,24 +424,26 @@ async function getEmployeeStats() {
       leaves = memDb.leaves;
     }
 
-    return employees.map(emp => {
-      const empLeaves = leaves.filter(l => {
-        const leaveUserId = l.user_id?.toString() || l.user_id;
-        return leaveUserId === emp.id.toString();
-      });
-      
-      return {
-        id: emp.id.toString(),
-        name: emp.name,
-        total_leaves: empLeaves.length,
-        approved_leaves: empLeaves.filter(l => l.status === 'approved').length,
-        pending_leaves: empLeaves.filter(l => l.status === 'pending').length,
-        casual_leaves: empLeaves.filter(l => l.leave_type === 'casual').length,
-        medical_leaves: empLeaves.filter(l => l.leave_type === 'medical').length,
-        halfday_leaves: empLeaves.filter(l => l.leave_type === 'halfday').length,
-        short_leaves: empLeaves.filter(l => l.leave_type === 'short').length
-      };
-    });
+    return employees
+      .map(emp => {
+        const empLeaves = leaves.filter(l => {
+          const leaveUserId = l.user_id?.toString() || l.user_id;
+          return leaveUserId === emp.id.toString();
+        });
+        
+        return {
+          id: emp.id.toString(),
+          name: emp.name,
+          total_leaves: empLeaves.length,
+          approved_leaves: empLeaves.filter(l => l.status === 'approved').length,
+          pending_leaves: empLeaves.filter(l => l.status === 'pending').length,
+          casual_leaves: empLeaves.filter(l => l.leave_type === 'casual').length,
+          medical_leaves: empLeaves.filter(l => l.leave_type === 'medical').length,
+          halfday_leaves: empLeaves.filter(l => l.leave_type === 'halfday').length,
+          short_leaves: empLeaves.filter(l => l.leave_type === 'short').length
+        };
+      })
+      .filter(emp => emp.total_leaves > 0); // Only return employees who have taken leaves
   } catch (err) {
     console.error('Error in getEmployeeStats:', err);
     // Return empty array on error

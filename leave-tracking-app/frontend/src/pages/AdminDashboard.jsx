@@ -21,7 +21,9 @@ function AdminDashboard() {
   const [expandedEmployee, setExpandedEmployee] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTooltip, setActiveTooltip] = useState(null)
-  const [dateFilter, setDateFilter] = useState('') // Filter by date (YYYY-MM-DD)
+  const [employeeNameFilter, setEmployeeNameFilter] = useState('') // Filter by employee name
+  const [dateFilter, setDateFilter] = useState('') // Filter by date for recently applied leaves
+  const [updatingLeaveId, setUpdatingLeaveId] = useState(null) // Track which leave is being updated
 
   useEffect(() => {
     fetchData()
@@ -64,12 +66,26 @@ function AdminDashboard() {
   }
 
   const handleStatusUpdate = async (leaveId, status) => {
+    // Set loading state for this specific leave
+    setUpdatingLeaveId(leaveId)
+    
+    // Optimistic update - immediately update UI
+    const previousLeaves = [...allLeaves]
+    setAllLeaves(prev => prev.map(leave => 
+      leave.id === leaveId ? { ...leave, status } : leave
+    ))
+    
     try {
       // Use the leaves-status endpoint that accepts ID in body
       await axios.patch('/api/leaves-status', { id: leaveId, status })
-      fetchData()
+      // Success - no need to refetch since we already updated optimistically
     } catch (err) {
       console.error('Error updating status:', err)
+      // Revert on error
+      setAllLeaves(previousLeaves)
+      alert(`Failed to ${status} leave. Please try again.`)
+    } finally {
+      setUpdatingLeaveId(null)
     }
   }
 
@@ -162,12 +178,14 @@ function AdminDashboard() {
   // Filter and sort leaves - ensure allLeaves is always an array
   const filteredLeaves = (Array.isArray(allLeaves) ? allLeaves : [])
     .filter(leave => {
-      if (!dateFilter) return true
-      // Check if any of the leave dates match the filter date
-      if (leave.dates && Array.isArray(leave.dates)) {
-        return leave.dates.includes(dateFilter)
+      // Filter by employee name
+      if (employeeNameFilter) {
+        const employeeName = (leave.employee_name || '').toLowerCase()
+        const filterText = employeeNameFilter.toLowerCase()
+        if (!employeeName.includes(filterText)) return false
       }
-      return false
+      
+      return true
     })
     .sort((a, b) => {
       // Sort by applied_at, newest first
@@ -177,7 +195,26 @@ function AdminDashboard() {
     })
 
   const pendingLeaves = filteredLeaves.filter(l => l.status === 'pending')
-  const recentLeaves = filteredLeaves.slice(0, 10)
+  
+  // Filter recent leaves by date
+  const recentLeaves = filteredLeaves
+    .filter(leave => {
+      if (!dateFilter) return true
+      // Check if any of the leave dates match the filter date
+      if (leave.dates && Array.isArray(leave.dates)) {
+        return leave.dates.includes(dateFilter)
+      }
+      return false
+    })
+    .slice(0, 10)
+  
+  // Filter employees by name
+  const filteredEmployees = employees.filter(employee => {
+    if (!employeeNameFilter) return true
+    const employeeName = (employee.name || '').toLowerCase()
+    const filterText = employeeNameFilter.toLowerCase()
+    return employeeName.includes(filterText)
+  })
 
   if (loading) {
     return (
@@ -193,7 +230,7 @@ function AdminDashboard() {
       <header className="admin-header">
         <div className="header-content">
           <div className="header-logo">
-            <Building2 size={28} />
+            <img src="/logo.png" alt="Government of Sri Lanka" />
           </div>
           <div className="header-text">
             <span className="header-dept">Department Of Physiotherapy</span>
@@ -247,33 +284,6 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* Compact Date Filter */}
-        <div className="filter-bar-compact">
-          <div className="filter-group-compact">
-            <Filter size={16} style={{ color: 'var(--color-text-muted)' }} />
-            <input
-              type="date"
-              className="form-input-compact"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              placeholder="Filter by date"
-              title="Filter by date"
-            />
-            {dateFilter && (
-              <>
-                <button
-                  className="btn-icon-compact"
-                  onClick={() => setDateFilter('')}
-                  title="Clear filter"
-                >
-                  <XIcon size={14} />
-                </button>
-                <span className="filter-active-text">{formatDate(dateFilter)}</span>
-              </>
-            )}
-          </div>
-        </div>
-
         {/* Recently Applied Leaves */}
         <div className="card" style={{ marginBottom: '1.5rem' }}>
           <div className="card-header">
@@ -282,13 +292,50 @@ function AdminDashboard() {
               Recently Applied Leaves
             </h3>
           </div>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)' }}>
+            <div className="filter-group-compact" style={{ justifyContent: 'center' }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <input
+                  type="date"
+                  className="form-input-compact"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  title="Filter by date"
+                  style={{ color: dateFilter ? 'var(--color-text)' : 'transparent', textAlign: 'center' }}
+                />
+                {!dateFilter && (
+                  <span style={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    fontSize: '0.85rem',
+                    color: 'var(--color-text-muted)',
+                    pointerEvents: 'none',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    Filter by date
+                  </span>
+                )}
+              </div>
+              {dateFilter && (
+                <button
+                  className="btn-icon-compact"
+                  onClick={() => setDateFilter('')}
+                  title="Clear date filter"
+                >
+                  <XIcon size={14} />
+                </button>
+              )}
+            </div>
+          </div>
           <div className="card-body" style={{ padding: 0 }}>
             {recentLeaves.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state-icon">
                   <CalendarDays size={28} />
                 </div>
-                <p>No leave applications yet</p>
+                <p>{dateFilter ? 'No leaves found for this date' : 'No leave applications yet'}</p>
               </div>
             ) : (
               <div className="table-container">
@@ -380,16 +427,26 @@ function AdminDashboard() {
                               <button 
                                 className="btn btn-success btn-small"
                                 onClick={() => handleStatusUpdate(leave.id, 'approved')}
+                                disabled={updatingLeaveId === leave.id}
                               >
-                                <CheckCircle size={14} />
-                                Approve
+                                {updatingLeaveId === leave.id ? (
+                                  <Clock size={14} className="spinning" />
+                                ) : (
+                                  <CheckCircle size={14} />
+                                )}
+                                {updatingLeaveId === leave.id ? 'Updating...' : 'Approve'}
                               </button>
                               <button 
                                 className="btn btn-danger btn-small"
                                 onClick={() => handleStatusUpdate(leave.id, 'rejected')}
+                                disabled={updatingLeaveId === leave.id}
                               >
-                                <XCircle size={14} />
-                                Reject
+                                {updatingLeaveId === leave.id ? (
+                                  <Clock size={14} className="spinning" />
+                                ) : (
+                                  <XCircle size={14} />
+                                )}
+                                {updatingLeaveId === leave.id ? 'Updating...' : 'Reject'}
                               </button>
                             </div>
                           </td>
@@ -436,21 +493,57 @@ function AdminDashboard() {
                         <button 
                           className="btn btn-success btn-mobile-approve"
                           onClick={() => handleStatusUpdate(leave.id, 'approved')}
+                          disabled={updatingLeaveId === leave.id}
                         >
-                          <CheckCircle size={20} />
-                          Approve
+                          {updatingLeaveId === leave.id ? (
+                            <Clock size={20} className="spinning" />
+                          ) : (
+                            <CheckCircle size={20} />
+                          )}
+                          {updatingLeaveId === leave.id ? 'Updating...' : 'Approve'}
                         </button>
                         <button 
                           className="btn btn-danger btn-mobile-reject"
                           onClick={() => handleStatusUpdate(leave.id, 'rejected')}
+                          disabled={updatingLeaveId === leave.id}
                         >
-                          <XCircle size={20} />
-                          Reject
+                          {updatingLeaveId === leave.id ? (
+                            <Clock size={20} className="spinning" />
+                          ) : (
+                            <XCircle size={20} />
+                          )}
+                          {updatingLeaveId === leave.id ? 'Updating...' : 'Reject'}
                         </button>
                       </div>
                     </div>
                   ))}
                 </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Compact Filters */}
+        <div className="filter-bar-compact">
+          <div className="filter-group-compact">
+            <Filter size={16} style={{ color: 'var(--color-text-muted)' }} />
+            <input
+              type="text"
+              className="form-input-compact"
+              value={employeeNameFilter}
+              onChange={(e) => setEmployeeNameFilter(e.target.value)}
+              placeholder="Filter by employee name"
+              title="Filter by employee name"
+            />
+            {employeeNameFilter && (
+              <>
+                <button
+                  className="btn-icon-compact"
+                  onClick={() => setEmployeeNameFilter('')}
+                  title="Clear employee filter"
+                >
+                  <XIcon size={14} />
+                </button>
               </>
             )}
           </div>
@@ -465,7 +558,12 @@ function AdminDashboard() {
             </h3>
           </div>
           <div className="card-body" style={{ padding: 0 }}>
-            {employees.map((employee) => (
+            {filteredEmployees.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                {employeeNameFilter ? 'No employees found matching the filter' : 'No employees with leaves'}
+              </div>
+            ) : (
+              filteredEmployees.map((employee) => (
               <div key={employee.id} className="employee-card" style={{ borderRadius: 0, boxShadow: 'none', borderBottom: '1px solid var(--color-border)' }}>
                 <div 
                   className="employee-card-header"
@@ -529,7 +627,8 @@ function AdminDashboard() {
                   </div>
                 )}
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </main>
