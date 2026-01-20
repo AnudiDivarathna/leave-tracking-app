@@ -468,7 +468,7 @@ function PublicDashboard() {
 
               <form onSubmit={handleSubmit}>
                 <div className="form-group">
-                  <label className="form-label">Name of the Physio Therapist</label>
+                  <label className="form-label">Name of the Physiotherapist</label>
                   <div className="autocomplete-wrapper">
                     <input
                       type="text"
@@ -510,7 +510,7 @@ function PublicDashboard() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Covering Officer</label>
+                  <label className="form-label">Covering Physiotherapist</label>
                   <div className="autocomplete-wrapper">
                     <input
                       type="text"
@@ -722,21 +722,39 @@ function PublicDashboard() {
 
           {/* All Leaves List (Approved & Pending) */}
           <div className="card">
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div className="card-header">
               <h3>
                 <CalendarDays size={18} />
                 All Leaves (Approved & Pending)
               </h3>
-              <div className="filter-group-compact">
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)' }}>
+              <div className="filter-group-compact" style={{ width: '250px', justifyContent: 'center' }}>
                 <Filter size={16} style={{ color: 'var(--color-text-muted)' }} />
-                <input
-                  type="date"
-                  className="form-input-compact"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  placeholder="Filter by date"
-                  title="Filter by date"
-                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
+                  <input
+                    type="date"
+                    className="form-input-compact"
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    title="Filter by date"
+                    style={{ color: dateFilter ? 'var(--color-text)' : 'transparent', width: '100%' }}
+                  />
+                  {!dateFilter && (
+                    <span style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '0.85rem',
+                      color: 'var(--color-text-muted)',
+                      pointerEvents: 'none',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      Filter by date
+                    </span>
+                  )}
+                </div>
                 {dateFilter && (
                   <button
                     className="btn-icon-compact"

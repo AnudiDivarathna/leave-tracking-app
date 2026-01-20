@@ -249,7 +249,7 @@ function AdminDashboard() {
             </div>
             <div className="stat-content">
               <h3>{stats?.totalEmployees || 0}</h3>
-              <p>Total Employees</p>
+              <p>Total Physiotherapists</p>
             </div>
           </div>
 
@@ -293,22 +293,23 @@ function AdminDashboard() {
             </h3>
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)' }}>
-            <div className="filter-group-compact" style={{ justifyContent: 'center' }}>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="filter-group-compact" style={{ width: '250px', justifyContent: 'center' }}>
+              <Filter size={16} style={{ color: 'var(--color-text-muted)' }} />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
                 <input
                   type="date"
                   className="form-input-compact"
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
                   title="Filter by date"
-                  style={{ color: dateFilter ? 'var(--color-text)' : 'transparent', textAlign: 'center' }}
+                  style={{ color: dateFilter ? 'var(--color-text)' : 'transparent', width: '100%' }}
                 />
                 {!dateFilter && (
                   <span style={{
                     position: 'absolute',
-                    left: '50%',
+                    left: 0,
                     top: '50%',
-                    transform: 'translate(-50%, -50%)',
+                    transform: 'translateY(-50%)',
                     fontSize: '0.85rem',
                     color: 'var(--color-text-muted)',
                     pointerEvents: 'none',
@@ -342,7 +343,7 @@ function AdminDashboard() {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Employee</th>
+                      <th>Physiotherapist</th>
                       <th>Selected Dates</th>
                       <th>Status</th>
                     </tr>
@@ -393,10 +394,10 @@ function AdminDashboard() {
                   <table className="table">
                     <thead>
                       <tr>
-                        <th>Employee</th>
+                        <th>Physiotherapist</th>
                         <th>Selected Dates</th>
                         <th>Applied On</th>
-                        <th>Covering Officer</th>
+                        <th>Covering Physiotherapist</th>
                         <th>Reason</th>
                         <th>Actions</th>
                       </tr>
@@ -475,7 +476,7 @@ function AdminDashboard() {
 
                       {leave.covering_officer && (
                         <div className="pending-reason-mobile">
-                          <strong>Covering Officer:</strong> {leave.covering_officer}
+                          <strong>Covering Physiotherapist:</strong> {leave.covering_officer}
                         </div>
                       )}
 
@@ -524,23 +525,24 @@ function AdminDashboard() {
         </div>
 
         {/* Compact Filters */}
-        <div className="filter-bar-compact">
-          <div className="filter-group-compact">
+        <div className="filter-bar-compact" style={{ justifyContent: 'center' }}>
+          <div className="filter-group-compact" style={{ width: '250px' }}>
             <Filter size={16} style={{ color: 'var(--color-text-muted)' }} />
             <input
               type="text"
               className="form-input-compact"
               value={employeeNameFilter}
               onChange={(e) => setEmployeeNameFilter(e.target.value)}
-              placeholder="Filter by employee name"
-              title="Filter by employee name"
+              placeholder="Filter by name"
+              title="Filter by name"
+              style={{ flex: 1 }}
             />
             {employeeNameFilter && (
               <>
                 <button
                   className="btn-icon-compact"
                   onClick={() => setEmployeeNameFilter('')}
-                  title="Clear employee filter"
+                  title="Clear filter"
                 >
                   <XIcon size={14} />
                 </button>
@@ -554,13 +556,13 @@ function AdminDashboard() {
           <div className="card-header">
             <h3>
               <Users size={18} />
-              Employees & Leave Summary
+              Physiotherapists & Leave Summary
             </h3>
           </div>
           <div className="card-body" style={{ padding: 0 }}>
             {filteredEmployees.length === 0 ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                {employeeNameFilter ? 'No employees found matching the filter' : 'No employees with leaves'}
+                {employeeNameFilter ? 'No physiotherapists found matching the filter' : 'No physiotherapists with leaves'}
               </div>
             ) : (
               filteredEmployees.map((employee) => (
