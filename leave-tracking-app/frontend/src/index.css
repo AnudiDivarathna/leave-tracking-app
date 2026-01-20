@@ -874,6 +874,10 @@ body {
 /* Tables */
 .table-container {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 600px;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
 }
 
 .table {
@@ -889,14 +893,21 @@ body {
   word-wrap: break-word;
 }
 
+.table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
 .table th {
   font-weight: 600;
   color: var(--color-text-muted);
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  background: var(--color-bg);
+  background: var(--color-bg-card);
   white-space: normal;
+  box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
 }
 
 .table tbody tr {
@@ -3018,6 +3029,11 @@ input[type="radio"]:hover {
     display: none;
   }
 
+  /* Table scrolling on mobile */
+  .table-container {
+    max-height: 500px;
+  }
+
   /* Cards */
   .card-header {
     padding: 0.85rem 1rem;
@@ -3134,6 +3150,10 @@ input[type="radio"]:hover {
   }
 
   /* Tables extra small screens */
+  .table-container {
+    max-height: 400px;
+  }
+
   .table th,
   .table td {
     padding: 0.4rem 0.3rem;
