@@ -668,7 +668,7 @@ function PublicDashboard() {
                             checked={formData.half_day_period === 'evening'}
                             onChange={(e) => setFormData(prev => ({ ...prev, half_day_period: e.target.value }))}
                           />
-                          <span>12 pm to 4 pm</span>
+                          <span>12 pm - 4 pm</span>
                         </label>
                       </div>
                     </div>
