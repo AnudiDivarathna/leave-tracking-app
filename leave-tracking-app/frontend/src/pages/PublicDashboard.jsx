@@ -762,7 +762,7 @@ function PublicDashboard() {
                     <div className="conflict-warning">
                       <Clock size={16} />
                       <div className="conflict-content">
-                        <strong>Leave Conflicts Detected:</strong>
+                        <strong>Overlapping leaves Detected:</strong>
                         {Object.entries(dateConflicts).map(([date, names]) => (
                           <div key={date} className="conflict-item">
                             <span className="conflict-date">{formatDate(date)}:</span>
