@@ -167,6 +167,8 @@ async function getAllLeaves() {
         id: leave._id.toString(),
         user_id: leaveUserId,
         leave_type: leave.leave_type,
+        leave_duration: leave.leave_duration || 'full_day',
+        half_day_period: leave.half_day_period || null,
         dates: Array.isArray(leave.dates) ? leave.dates : (leave.dates ? JSON.parse(leave.dates) : []),
         reason: leave.reason || '',
         covering_officer: leave.covering_officer || null,
@@ -203,6 +205,8 @@ async function getLeaveById(id) {
         id: leave._id.toString(),
         user_id: leave.user_id?.toString(),
         leave_type: leave.leave_type,
+        leave_duration: leave.leave_duration || 'full_day',
+        half_day_period: leave.half_day_period || null,
         dates: Array.isArray(leave.dates) ? leave.dates : (leave.dates ? JSON.parse(leave.dates) : []),
         reason: leave.reason || '',
         covering_officer: leave.covering_officer || null,
@@ -249,6 +253,8 @@ async function createLeave(leaveData) {
     const leave = {
       user_id: userId,
       leave_type: leaveData.leave_type || 'casual', // Default to casual (Annual Leave)
+      leave_duration: leaveData.leave_duration || 'full_day', // 'full_day' or 'half_day'
+      half_day_period: leaveData.half_day_period || null, // 'morning' or 'evening' - only for half_day
       dates: Array.isArray(leaveData.dates) ? leaveData.dates : [],
       reason: leaveData.reason || '',
       covering_officer: leaveData.covering_officer || null,
@@ -276,6 +282,8 @@ async function createLeave(leaveData) {
     id: memDb.nextLeaveId++,
     user_id: leaveData.user_id,
     leave_type: leaveData.leave_type || 'casual', // Default to casual (Annual Leave)
+    leave_duration: leaveData.leave_duration || 'full_day', // 'full_day' or 'half_day'
+    half_day_period: leaveData.half_day_period || null, // 'morning' or 'evening' - only for half_day
     dates: Array.isArray(leaveData.dates) ? leaveData.dates : [],
     reason: leaveData.reason || '',
     covering_officer: leaveData.covering_officer || null,
@@ -332,6 +340,8 @@ async function updateLeaveStatus(id, status) {
         id: leave._id.toString(),
         user_id: leave.user_id?.toString(),
         leave_type: leave.leave_type,
+        leave_duration: leave.leave_duration || 'full_day',
+        half_day_period: leave.half_day_period || null,
         dates: Array.isArray(leave.dates) ? leave.dates : (leave.dates ? JSON.parse(leave.dates) : []),
         reason: leave.reason || '',
         status: leave.status,

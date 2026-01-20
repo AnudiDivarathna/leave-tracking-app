@@ -78,7 +78,18 @@ function AdminDashboard() {
     try {
       // Use the leaves-status endpoint that accepts ID in body
       await axios.patch('/api/leaves-status', { id: leaveId, status })
-      // Success - no need to refetch since we already updated optimistically
+      // Refetch stats to update the counts in stat cards and employee leave summary
+      try {
+        const [statsRes, employeesRes] = await Promise.all([
+          axios.get('/api/stats/overview'),
+          axios.get('/api/stats/employees')
+        ])
+        setStats(statsRes?.data || null)
+        setEmployees(Array.isArray(employeesRes?.data) ? employeesRes.data : [])
+      } catch (statsErr) {
+        console.error('Error fetching updated stats:', statsErr)
+        // Don't fail the whole operation if stats fetch fails
+      }
     } catch (err) {
       console.error('Error updating status:', err)
       // Revert on error
@@ -132,6 +143,16 @@ function AdminDashboard() {
       'short': 'Short'
     }
     return types[type] || type
+  }
+
+  const formatLeaveDuration = (leave) => {
+    if (!leave.leave_duration || leave.leave_duration === 'full_day') {
+      return 'Full Day'
+    }
+    if (leave.leave_duration === 'half_day') {
+      return 'Half Day'
+    }
+    return leave.leave_duration
   }
 
   // Render dates with tooltip
@@ -345,6 +366,7 @@ function AdminDashboard() {
                     <tr>
                       <th>Physiotherapist</th>
                       <th>Selected Dates</th>
+                      <th>Leave Type</th>
                       <th>Status</th>
                     </tr>
                   </thead>
@@ -355,7 +377,10 @@ function AdminDashboard() {
                           <span className="employee-cell-name">{leave.employee_name}</span>
                         </td>
                         <td>
-                          {renderDatesWithTooltip(leave.dates, 3, `recent-${leave.id}`)}
+                          {renderDatesWithTooltip(leave.dates, 2, `recent-${leave.id}`)}
+                        </td>
+                        <td>
+                          <span className="leave-type-badge">{formatLeaveDuration(leave)}</span>
                         </td>
                         <td>
                           <span className={`status-badge ${leave.status}`}>
@@ -411,7 +436,9 @@ function AdminDashboard() {
                           <td>
                             <div className="dates-cell">
                               {renderDatesWithTooltip(leave.dates, 5, `pending-${leave.id}`)}
-                              <span className="days-count-badge">({leave.dates?.length || 0} day{leave.dates?.length !== 1 ? 's' : ''})</span>
+                              {(leave.dates?.length || 0) > 1 && (
+                                <span className="days-count-badge">({leave.dates?.length || 0} days)</span>
+                              )}
                             </div>
                           </td>
                           <td>
@@ -464,14 +491,20 @@ function AdminDashboard() {
                       <div className="pending-card-header-mobile">
                         <div>
                           <div className="pending-employee-name">{leave.employee_name}</div>
-                          <div className="pending-meta">
-                            <span className="pending-date-count">({leave.dates?.length || 0} days)</span>
-                          </div>
+                          {(leave.dates?.length || 0) > 1 && (
+                            <div className="pending-meta">
+                              <span className="pending-date-count">({leave.dates?.length || 0} days)</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       
                       <div className="pending-card-dates-mobile">
                         {renderDatesWithTooltip(leave.dates, 3, `pending-mobile-${leave.id}`)}
+                      </div>
+
+                      <div className="pending-reason-mobile">
+                        <strong>Leave Type:</strong> {formatLeaveDuration(leave)}
                       </div>
 
                       {leave.covering_officer && (
@@ -497,9 +530,9 @@ function AdminDashboard() {
                           disabled={updatingLeaveId === leave.id}
                         >
                           {updatingLeaveId === leave.id ? (
-                            <Clock size={20} className="spinning" />
+                            <Clock size={16} className="spinning" />
                           ) : (
-                            <CheckCircle size={20} />
+                            <CheckCircle size={16} />
                           )}
                           {updatingLeaveId === leave.id ? 'Updating...' : 'Approve'}
                         </button>
@@ -509,9 +542,9 @@ function AdminDashboard() {
                           disabled={updatingLeaveId === leave.id}
                         >
                           {updatingLeaveId === leave.id ? (
-                            <Clock size={20} className="spinning" />
+                            <Clock size={16} className="spinning" />
                           ) : (
-                            <XCircle size={20} />
+                            <XCircle size={16} />
                           )}
                           {updatingLeaveId === leave.id ? 'Updating...' : 'Reject'}
                         </button>
@@ -604,6 +637,7 @@ function AdminDashboard() {
                               <tr>
                                 <th>Applied On</th>
                                 <th>Dates</th>
+                                <th>Leave Type</th>
                                 <th>Status</th>
                               </tr>
                             </thead>
@@ -613,6 +647,9 @@ function AdminDashboard() {
                                   <td>{formatDate(leave.applied_at)}</td>
                                   <td>
                                     {renderDatesWithTooltip(leave.dates, 2, `employee-${employee.id}-${leave.id}`)}
+                                  </td>
+                                  <td>
+                                    <span className="leave-type-badge">{formatLeaveDuration(leave)}</span>
                                   </td>
                                   <td>
                                     <span className={`status-badge ${leave.status}`}>

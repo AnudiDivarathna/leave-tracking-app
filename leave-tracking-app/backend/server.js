@@ -86,7 +86,7 @@ app.get('/api/employees', async (req, res) => {
 
 // Apply for leave (public)
 app.post('/api/leaves', async (req, res) => {
-  const { user_id, leave_type, dates, reason, covering_officer } = req.body;
+  const { user_id, leave_type, dates, reason, covering_officer, leave_duration, half_day_period } = req.body;
 
   try {
     // Convert user_id to ObjectId if it's a valid MongoDB ObjectId string
@@ -98,6 +98,8 @@ app.post('/api/leaves', async (req, res) => {
     const leave = {
       user_id: userId,
       leave_type: leave_type || 'casual', // Default to casual (Annual Leave)
+      leave_duration: leave_duration || 'full_day', // 'full_day' or 'half_day'
+      half_day_period: half_day_period || null, // 'morning' or 'evening' - only for half_day
       dates: Array.isArray(dates) ? dates : [],
       reason: reason || '',
       covering_officer: covering_officer || null,
@@ -141,6 +143,8 @@ app.get('/api/leaves', async (req, res) => {
             id: { $toString: '$_id' },
             user_id: { $toString: '$user_id' },
             leave_type: 1,
+            leave_duration: 1,
+            half_day_period: 1,
             dates: 1,
             reason: 1,
             covering_officer: 1,

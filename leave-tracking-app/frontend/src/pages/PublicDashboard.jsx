@@ -26,7 +26,9 @@ function PublicDashboard() {
     employee_name: '',
     dates: [],
     reason: '',
-    covering_officer: ''
+    covering_officer: '',
+    leave_duration: 'full_day', // 'full_day' or 'half_day'
+    half_day_period: '' // 'morning' or 'evening' - only for half_day
   })
 
   // Autocomplete state for employee name
@@ -162,6 +164,12 @@ function PublicDashboard() {
       return
     }
 
+    // Validate half day period if half day is selected
+    if (formData.leave_duration === 'half_day' && !formData.half_day_period) {
+      setMessage({ type: 'error', text: 'Please select 8 am - 12 pm or 12 pm to 4 pm for half day leave' })
+      return
+    }
+
     setSubmitting(true)
     setMessage({ type: '', text: '' })
 
@@ -172,7 +180,9 @@ function PublicDashboard() {
         leave_type: 'casual', // Default to casual (Annual Leave)
         dates: formData.dates,
         reason: formData.reason,
-        covering_officer: formData.covering_officer
+        covering_officer: formData.covering_officer,
+        leave_duration: formData.leave_duration,
+        half_day_period: formData.leave_duration === 'half_day' ? formData.half_day_period : null
       })
       
       setMessage({ type: 'success', text: 'Leave application submitted successfully!' })
@@ -180,7 +190,9 @@ function PublicDashboard() {
         employee_name: '',
         dates: [],
         reason: '',
-        covering_officer: ''
+        covering_officer: '',
+        leave_duration: 'full_day',
+        half_day_period: ''
       })
       
       // Refresh data
@@ -366,6 +378,16 @@ function PublicDashboard() {
     return types[type] || type
   }
 
+  const formatLeaveDuration = (leave) => {
+    if (!leave.leave_duration || leave.leave_duration === 'full_day') {
+      return 'Full Day'
+    }
+    if (leave.leave_duration === 'half_day') {
+      return 'Half Day'
+    }
+    return leave.leave_duration
+  }
+
   // Get minimum date (today) - formatted as YYYY-MM-DD
   const getMinDate = () => {
     const today = new Date()
@@ -549,6 +571,59 @@ function PublicDashboard() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Leave Type</label>
+                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="leave_duration"
+                        value="full_day"
+                        checked={formData.leave_duration === 'full_day'}
+                        onChange={(e) => setFormData(prev => ({ ...prev, leave_duration: e.target.value, half_day_period: '' }))}
+                      />
+                      <span>Full Day</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="leave_duration"
+                        value="half_day"
+                        checked={formData.leave_duration === 'half_day'}
+                        onChange={(e) => setFormData(prev => ({ ...prev, leave_duration: e.target.value }))}
+                      />
+                      <span>Half Day</span>
+                    </label>
+                  </div>
+                  {formData.leave_duration === 'half_day' && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label className="form-label">Half Day Period</label>
+                      <div style={{ display: 'flex', gap: '1rem' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            name="half_day_period"
+                            value="morning"
+                            checked={formData.half_day_period === 'morning'}
+                            onChange={(e) => setFormData(prev => ({ ...prev, half_day_period: e.target.value }))}
+                          />
+                          <span>8 am - 12 pm</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            name="half_day_period"
+                            value="evening"
+                            checked={formData.half_day_period === 'evening'}
+                            onChange={(e) => setFormData(prev => ({ ...prev, half_day_period: e.target.value }))}
+                          />
+                          <span>12 pm to 4 pm</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -781,6 +856,7 @@ function PublicDashboard() {
                       <tr>
                         <th>Name</th>
                         <th>Dates</th>
+                        <th>Leave Type</th>
                         <th>Status</th>
                       </tr>
                     </thead>
@@ -801,6 +877,9 @@ function PublicDashboard() {
                                 <span className="date-tag more">+{leave.dates.length - 2}</span>
                               )}
                             </div>
+                          </td>
+                          <td>
+                            <span className="leave-type-badge">{formatLeaveDuration(leave)}</span>
                           </td>
                           <td>
                             <span className={`status-badge ${leave.status}`}>
