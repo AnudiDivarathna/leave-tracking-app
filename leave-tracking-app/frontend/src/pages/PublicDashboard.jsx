@@ -170,6 +170,55 @@ function PublicDashboard() {
       return
     }
 
+    // Check for duplicate leave applications (same person, same dates, same leave type)
+    const duplicateLeaves = allLeaves.filter(leave => {
+      // Check if it's the same employee
+      if (leave.user_id?.toString() !== employee.id.toString() && leave.user_id !== employee.id) {
+        return false
+      }
+      
+      // Check if status is pending or approved (rejected leaves don't block)
+      if (leave.status !== 'pending' && leave.status !== 'approved') {
+        return false
+      }
+      
+      // Check if leave duration matches
+      if (leave.leave_duration !== formData.leave_duration) {
+        return false
+      }
+      
+      // If it's a half day, check if the period matches
+      if (formData.leave_duration === 'half_day') {
+        if (leave.half_day_period !== formData.half_day_period) {
+          return false
+        }
+      }
+      
+      // Check if any of the selected dates overlap with existing leave dates
+      if (leave.dates && Array.isArray(leave.dates)) {
+        const hasOverlap = formData.dates.some(date => leave.dates.includes(date))
+        return hasOverlap
+      }
+      
+      return false
+    })
+
+    if (duplicateLeaves.length > 0) {
+      const duplicateDates = duplicateLeaves.flatMap(leave => leave.dates || [])
+        .filter((date, index, self) => formData.dates.includes(date) && self.indexOf(date) === index)
+      
+      if (duplicateDates.length > 0) {
+        const dateStr = duplicateDates.length === 1 
+          ? formatDate(duplicateDates[0])
+          : `${duplicateDates.length} dates`
+        setMessage({ 
+          type: 'error', 
+          text: `You have already applied for ${formData.leave_duration === 'half_day' ? 'half day' : 'full day'} leave on ${dateStr}. Please check your existing applications.` 
+        })
+        return
+      }
+    }
+
     setSubmitting(true)
     setMessage({ type: '', text: '' })
 
