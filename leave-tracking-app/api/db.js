@@ -441,10 +441,13 @@ async function getEmployeeStats() {
           return leaveUserId === emp.id.toString();
         });
         
+        // Filter out rejected leaves for total count
+        const nonRejectedLeaves = empLeaves.filter(l => l.status !== 'rejected');
+        
         return {
           id: emp.id.toString(),
           name: emp.name,
-          total_leaves: empLeaves.length,
+          total_leaves: nonRejectedLeaves.length,
           approved_leaves: empLeaves.filter(l => l.status === 'approved').length,
           pending_leaves: empLeaves.filter(l => l.status === 'pending').length,
           casual_leaves: empLeaves.filter(l => l.leave_type === 'casual').length,

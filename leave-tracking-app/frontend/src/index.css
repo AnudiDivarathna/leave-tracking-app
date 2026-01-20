@@ -1344,6 +1344,67 @@ body {
   max-width: 100%;
 }
 
+/* Radio Buttons - Make them visible and larger on mobile */
+input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  margin: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  background-color: var(--color-bg-card);
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+input[type="radio"]:checked {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: white;
+}
+
+input[type="radio"]:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+input[type="radio"]:hover {
+  border-color: var(--color-primary);
+}
+
+/* Mobile - Make radio buttons even larger for better touch targets */
+@media (max-width: 768px) {
+  input[type="radio"] {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    border-width: 2.5px;
+  }
+  
+  input[type="radio"]:checked::after {
+    width: 8px;
+    height: 8px;
+  }
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

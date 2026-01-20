@@ -326,7 +326,15 @@ app.get('/api/stats/employees', async (req, res) => {
           $project: {
             id: { $toString: '$_id' },
             name: 1,
-            total_leaves: { $size: '$leaves' },
+            total_leaves: {
+              $size: {
+                $filter: {
+                  input: '$leaves',
+                  as: 'leave',
+                  cond: { $ne: ['$$leave.status', 'rejected'] }
+                }
+              }
+            },
             approved_leaves: {
               $size: {
                 $filter: {
