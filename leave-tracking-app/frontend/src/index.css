@@ -528,6 +528,32 @@ body {
   margin: auto;
 }
 
+/* Mobile: Make login card fill most of the screen */
+@media (max-width: 600px) {
+  .login-page {
+    padding: 1rem;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg);
+  }
+  
+  .login-page::before {
+    display: none;
+  }
+  
+  .login-card {
+    border-radius: 16px;
+    max-width: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+    box-shadow: var(--shadow-md);
+    border: 2px solid var(--color-primary);
+  }
+}
+
 .login-header {
   text-align: center;
   margin-bottom: 1.5rem;
@@ -543,6 +569,19 @@ body {
   justify-content: center;
   margin: 0 auto 1rem;
   color: white;
+}
+
+.login-logo-img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.login-logo-img img {
+  height: 70px;
+  width: auto;
+  border-radius: 8px;
 }
 
 .login-department {
@@ -2569,66 +2608,7 @@ input[type="radio"]:hover {
     width: 100%;
   }
 
-  /* Login page - small phones */
-  .login-page {
-    padding: 1rem;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .login-card {
-    padding: 1.5rem;
-    border-radius: 16px;
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .login-header {
-    margin-bottom: 1.5rem;
-  }
-
-  .login-logo {
-    width: 56px;
-    height: 56px;
-    margin-bottom: 1rem;
-  }
-
-  .login-logo svg {
-    width: 26px;
-    height: 26px;
-  }
-
-  .login-department {
-    font-size: 0.75rem;
-  }
-
-  .login-title {
-    font-size: 1.25rem;
-  }
-
-  .login-subtitle {
-    font-size: 0.9rem;
-  }
-
-  .login-card .form-group {
-    margin-bottom: 1.1rem;
-  }
-
-  .login-card .form-input {
-    padding: 0.85rem 1rem;
-    padding-left: 40px;
-    font-size: 1rem;
-  }
-
-  .login-card .btn {
-    padding: 0.85rem 1rem;
-    font-size: 1rem;
-  }
-
-  .login-card .alert {
-    padding: 0.75rem 0.85rem;
-    font-size: 0.85rem;
-  }
+  /* Login page handled by 600px breakpoint */
 
   /* Header User Info Mobile */
   .header-user {
@@ -3587,171 +3567,10 @@ input[type="radio"]:hover {
     padding: 0.85rem 1rem;
   }
 
-  /* Login - mobile friendly */
-  .login-page {
-    padding: 1rem;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .login-card {
-    padding: 1.75rem;
-    border-radius: 20px;
-    max-width: 100%;
-    width: 100%;
-    margin: 0;
-  }
-
-  .login-header {
-    margin-bottom: 1.75rem;
-  }
-
-  .login-logo {
-    width: 60px;
-    height: 60px;
-    border-radius: 14px;
-    margin-bottom: 1rem;
-  }
-
-  .login-logo svg {
-    width: 28px;
-    height: 28px;
-  }
-
-  .login-department {
-    font-size: 0.8rem;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.35rem;
-  }
-
-  .login-title {
-    font-size: 1.4rem;
-    margin-bottom: 0.3rem;
-  }
-
-  .login-subtitle {
-    font-size: 0.95rem;
-  }
-
-  .login-card .form-group {
-    margin-bottom: 1.25rem;
-  }
-
-  .login-card .form-label {
-    font-size: 0.9rem;
-    margin-bottom: 0.4rem;
-  }
-
-  .login-card .form-input {
-    padding: 0.9rem 1rem;
-    padding-left: 42px;
-    font-size: 1rem;
-    border-radius: 10px;
-  }
-
-  .login-card .btn {
-    padding: 0.9rem 1.25rem;
-    font-size: 1rem;
-    border-radius: 10px;
-  }
-
-  .login-card .btn svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .login-card .alert {
-    padding: 0.85rem 1rem;
-    font-size: 0.9rem;
-    margin-bottom: 1.25rem;
-    border-radius: 10px;
-  }
-
-  .login-card .alert svg {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-  }
-
-  .login-card p {
-    font-size: 0.9rem !important;
-  }
-
-  .login-card .welcome-message {
-    padding: 1rem !important;
-    margin-bottom: 1.25rem !important;
-    border-radius: 10px !important;
-  }
-
-  .login-card .welcome-message p:first-child {
-    font-size: 0.9rem !important;
-  }
-
-  .login-card .welcome-message p:last-child {
-    font-size: 1.05rem !important;
-  }
+  /* Login styles handled by @media (max-width: 600px) in login section */
 }
 
 @media (max-width: 480px) {
-  /* Login - extra small screens */
-  .login-page {
-    padding: 0.75rem;
-    min-height: 100vh;
-    min-height: 100dvh;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .login-card {
-    padding: 1.25rem;
-    border-radius: 16px;
-    width: 100%;
-  }
-
-  .login-logo {
-    width: 52px;
-    height: 52px;
-    margin-bottom: 0.85rem;
-  }
-
-  .login-logo svg {
-    width: 24px;
-    height: 24px;
-  }
-
-  .login-department {
-    font-size: 0.7rem;
-    letter-spacing: 0.4px;
-  }
-
-  .login-title {
-    font-size: 1.15rem;
-  }
-
-  .login-subtitle {
-    font-size: 0.85rem;
-  }
-
-  .login-card .form-group {
-    margin-bottom: 1rem;
-  }
-
-  .login-card .form-label {
-    font-size: 0.85rem;
-  }
-
-  .login-card .form-input {
-    padding: 0.8rem 0.9rem;
-    padding-left: 38px;
-    font-size: 0.95rem;
-  }
-
-  .login-card .btn {
-    padding: 0.8rem 1rem;
-    font-size: 0.95rem;
-    min-height: 44px;
-  }
-
   /* Extra small screens */
   .balance-grid {
     grid-template-columns: 1fr 1fr 1fr;

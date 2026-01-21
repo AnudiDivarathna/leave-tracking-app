@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import axios from 'axios'
 import { 
-  Building2, 
   User, 
   Lock, 
   Mail, 
@@ -163,8 +162,8 @@ function Login({ onLogin }) {
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
-          <div className="login-logo">
-            <Building2 size={28} />
+          <div className="login-logo-img">
+            <img src="/logo.png" alt="Government of Sri Lanka" />
           </div>
           <p className="login-department">Department Of Physiotherapy</p>
           <h1 className="login-title">National Hospital Kandy</h1>
