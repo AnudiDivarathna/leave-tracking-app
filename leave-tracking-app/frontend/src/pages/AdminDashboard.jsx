@@ -194,9 +194,41 @@ function AdminDashboard() {
       return 'Full Day'
     }
     if (leave.leave_duration === 'half_day') {
-      return leave.half_day_period === 'morning' ? '1st Half' : '2nd Half'
+      return leave.half_day_period === 'morning' ? '8am-12pm' : '12pm-4pm'
     }
     return leave.leave_duration
+  }
+
+  // Render status badge with icon
+  const renderStatusBadge = (status) => {
+    const iconSize = 12
+    const iconStyle = { marginRight: '4px' }
+    
+    if (status === 'approved') {
+      return (
+        <span className={`status-badge ${status}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <CheckCircle size={iconSize} style={iconStyle} />
+          {status}
+        </span>
+      )
+    }
+    if (status === 'rejected') {
+      return (
+        <span className={`status-badge ${status}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <XCircle size={iconSize} style={iconStyle} />
+          {status}
+        </span>
+      )
+    }
+    if (status === 'pending') {
+      return (
+        <span className={`status-badge ${status}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <Clock size={iconSize} style={iconStyle} />
+          {status}
+        </span>
+      )
+    }
+    return <span className={`status-badge ${status}`}>{status}</span>
   }
 
   // Render dates with tooltip
@@ -209,7 +241,7 @@ function AdminDashboard() {
     // Get type suffix for half-day leaves
     const getTypeSuffix = () => {
       if (!leave || !leave.leave_duration || leave.leave_duration === 'full_day') return ''
-      return leave.half_day_period === 'morning' ? ' (1st Half)' : ' (2nd Half)'
+      return leave.half_day_period === 'morning' ? ' (8am-12pm)' : ' (12pm-4pm)'
     }
     const typeSuffix = getTypeSuffix()
     
@@ -342,7 +374,7 @@ function AdminDashboard() {
           l.dates.forEach(date => {
             const typeLabel = !l.leave_duration || l.leave_duration === 'full_day' 
               ? '' 
-              : (l.half_day_period === 'morning' ? '1st Half' : '2nd Half')
+              : (l.half_day_period === 'morning' ? '8am-12pm' : '12pm-4pm')
             allDates.push({ date, type: typeLabel, leave: l })
           })
         }
@@ -526,9 +558,10 @@ function AdminDashboard() {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Physiotherapist</th>
+                      <th>Name</th>
                       <th>Selected Dates</th>
-                      <th>Status</th>
+                      <th>Covering</th>
+                      <th>State</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -550,9 +583,10 @@ function AdminDashboard() {
                           </div>
                         </td>
                         <td>
-                          <span className={`status-badge ${leave.status}`}>
-                            {leave.status}
-                          </span>
+                          <span className="employee-cell-name" style={{ fontSize: '0.8rem' }}>{leave.covering_officer || '-'}</span>
+                        </td>
+                        <td>
+                          {renderStatusBadge(leave.status)}
                         </td>
                       </tr>
                     ))}
@@ -586,11 +620,10 @@ function AdminDashboard() {
                   <table className="table">
                     <thead>
                       <tr>
-                        <th>Physiotherapist</th>
+                        <th>Name</th>
                         <th>Selected Dates</th>
                         <th>Applied On</th>
-                        <th>Covering Physiotherapist</th>
-                        <th>Reason</th>
+                        <th>Covering</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -622,9 +655,6 @@ function AdminDashboard() {
                           </td>
                           <td>
                             <span className="reason-text">{leave.covering_officer || '-'}</span>
-                          </td>
-                          <td>
-                            <span className="reason-text">{leave.reason || '-'}</span>
                           </td>
                           <td>
                             <div className="action-buttons">
@@ -690,13 +720,7 @@ function AdminDashboard() {
 
                       {leave.covering_officer && (
                         <div className="pending-reason-mobile">
-                          <strong>Covering Physiotherapist:</strong> {leave.covering_officer}
-                        </div>
-                      )}
-
-                      {leave.reason && (
-                        <div className="pending-reason-mobile">
-                          <strong>Reason:</strong> {leave.reason}
+                          <strong>Covering:</strong> {leave.covering_officer}
                         </div>
                       )}
 
@@ -818,7 +842,8 @@ function AdminDashboard() {
                               <tr>
                                 <th>Applied On</th>
                                 <th>Dates</th>
-                                <th>Status</th>
+                                <th>Covering</th>
+                                <th>State</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -828,10 +853,9 @@ function AdminDashboard() {
                                   <td>
                                     {renderDatesWithTooltip(leave.dates, 2, `employee-${employee.id}-${leave.id}`, leave)}
                                   </td>
+                                  <td style={{ fontSize: '0.8rem' }}>{leave.covering_officer || '-'}</td>
                                   <td>
-                                    <span className={`status-badge ${leave.status}`}>
-                                      {leave.status}
-                                    </span>
+                                    {renderStatusBadge(leave.status)}
                                   </td>
                                 </tr>
                               ))}

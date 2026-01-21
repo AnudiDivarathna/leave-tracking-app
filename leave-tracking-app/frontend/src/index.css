@@ -281,7 +281,7 @@ body {
   border-color: var(--color-primary);
 }
 
-/* 1st Half - LEFT half filled */
+/* 8am-12pm - LEFT half filled */
 .history-day.history-half-1st {
   background: linear-gradient(to right, var(--color-primary) 50%, #ffffff 50%);
   color: var(--color-text);
@@ -289,7 +289,7 @@ body {
   border-color: var(--color-primary);
 }
 
-/* 2nd Half - RIGHT half filled */
+/* 12pm-4pm - RIGHT half filled */
 .history-day.history-half-2nd {
   background: linear-gradient(to right, #ffffff 50%, var(--color-primary) 50%);
   color: var(--color-text);

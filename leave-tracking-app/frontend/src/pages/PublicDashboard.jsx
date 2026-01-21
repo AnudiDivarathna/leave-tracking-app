@@ -42,7 +42,6 @@ function PublicDashboard({ user, onLogout }) {
   const [formData, setFormData] = useState({
     employee_name: user?.name || '',
     selectedDates: {},
-    reason: '',
     covering_officer: ''
   })
 
@@ -121,12 +120,12 @@ function PublicDashboard({ user, onLogout }) {
       setEmployees(employees)
       setAllLeaves(leaves)
       
-      // Filter today's leaves
+      // Filter today's leaves (exclude rejected)
       const today = new Date()
       const todayStr = formatDateString(today.getFullYear(), today.getMonth(), today.getDate())
       const todayLeavesFiltered = leaves.filter(leave => {
         if (leave.dates && Array.isArray(leave.dates)) {
-          return leave.dates.includes(todayStr)
+          return leave.dates.includes(todayStr) && leave.status !== 'rejected'
         }
         return false
       })
@@ -269,7 +268,6 @@ function PublicDashboard({ user, onLogout }) {
           user_id: employee.id,
           leave_type: 'casual',
           dates: fullDayDates,
-          reason: formData.reason,
           covering_officer: formData.covering_officer,
           leave_duration: 'full_day',
           half_day_period: null
@@ -282,7 +280,6 @@ function PublicDashboard({ user, onLogout }) {
           user_id: employee.id,
           leave_type: 'casual',
           dates: halfDayMorningDates,
-          reason: formData.reason,
           covering_officer: formData.covering_officer,
           leave_duration: 'half_day',
           half_day_period: 'morning'
@@ -295,7 +292,6 @@ function PublicDashboard({ user, onLogout }) {
           user_id: employee.id,
           leave_type: 'casual',
           dates: halfDayEveningDates,
-          reason: formData.reason,
           covering_officer: formData.covering_officer,
           leave_duration: 'half_day',
           half_day_period: 'evening'
@@ -309,7 +305,6 @@ function PublicDashboard({ user, onLogout }) {
       setFormData({
         employee_name: user?.name || '',
         selectedDates: {},
-        reason: '',
         covering_officer: ''
       })
       
@@ -483,8 +478,8 @@ function PublicDashboard({ user, onLogout }) {
     const selection = formData.selectedDates[dateStr]
     if (!selection) return ''
     if (selection.type === 'full_day') return ''
-    if (selection.period === 'morning') return '1st Half'
-    return '2nd Half'
+    if (selection.period === 'morning') return '8am-12pm'
+    return '12pm-4pm'
   }
 
   const formatDate = (dateStr) => {
@@ -510,9 +505,41 @@ function PublicDashboard({ user, onLogout }) {
       return 'Full Day'
     }
     if (leave.leave_duration === 'half_day') {
-      return leave.half_day_period === 'morning' ? '1st Half' : '2nd Half'
+      return leave.half_day_period === 'morning' ? '8am-12pm' : '12pm-4pm'
     }
     return leave.leave_duration
+  }
+
+  // Render status badge with icon
+  const renderStatusBadge = (status) => {
+    const iconSize = 12
+    const iconStyle = { marginRight: '4px' }
+    
+    if (status === 'approved') {
+      return (
+        <span className={`status-badge ${status}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <CheckCircle size={iconSize} style={iconStyle} />
+          {status}
+        </span>
+      )
+    }
+    if (status === 'rejected') {
+      return (
+        <span className={`status-badge ${status}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <XCircle size={iconSize} style={iconStyle} />
+          {status}
+        </span>
+      )
+    }
+    if (status === 'pending') {
+      return (
+        <span className={`status-badge ${status}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <Clock size={iconSize} style={iconStyle} />
+          {status}
+        </span>
+      )
+    }
+    return <span className={`status-badge ${status}`}>{status}</span>
   }
 
   // Get minimum date (today) - formatted as YYYY-MM-DD
@@ -562,7 +589,7 @@ function PublicDashboard({ user, onLogout }) {
           l.dates.forEach(date => {
             const typeLabel = !l.leave_duration || l.leave_duration === 'full_day' 
               ? '' 
-              : (l.half_day_period === 'morning' ? '1st Half' : '2nd Half')
+              : (l.half_day_period === 'morning' ? '8am-12pm' : '12pm-4pm')
             allDates.push({ date, type: typeLabel, leave: l })
           })
         }
@@ -663,7 +690,7 @@ function PublicDashboard({ user, onLogout }) {
               {(todayLeaves || []).map(leave => (
                 <div key={leave.id} className="today-item">
                   <span className="today-name">{leave.employee_name}</span>
-                  <span className={`status-badge ${leave.status}`}>{leave.status}</span>
+                  {renderStatusBadge(leave.status)}
                 </div>
               ))}
             </div>
@@ -766,7 +793,12 @@ function PublicDashboard({ user, onLogout }) {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Select Day/Days</label>
+                  <label className="form-label">
+                    Select Day/Days
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--color-text-muted)', display: 'block', marginTop: '0.25rem' }}>
+                      (First select type on top, then tap the date)
+                    </span>
+                  </label>
                   <div className="custom-calendar-wrapper" ref={calendarRef}>
                     <button
                       type="button"
@@ -852,7 +884,7 @@ function PublicDashboard({ user, onLogout }) {
                             }}
                           >
                             <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: 'linear-gradient(to right, var(--color-primary) 50%, #f0f0f0 50%)', border: '1px solid var(--color-primary)' }}></span>
-                            <span>1st Half</span>
+                            <span>8am-12pm</span>
                           </button>
                           <button
                             type="button"
@@ -872,7 +904,7 @@ function PublicDashboard({ user, onLogout }) {
                             }}
                           >
                             <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: 'linear-gradient(to right, #f0f0f0 50%, var(--color-primary) 50%)', border: '1px solid var(--color-primary)' }}></span>
-                            <span>2nd Half</span>
+                            <span>12pm-4pm</span>
                           </button>
                         </div>
                         <div className="calendar-days">
@@ -1002,17 +1034,6 @@ function PublicDashboard({ user, onLogout }) {
                   )}
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Reason (Optional)</label>
-                  <textarea
-                    name="reason"
-                    className="form-textarea"
-                    placeholder="Enter reason for leave..."
-                    value={formData.reason}
-                    onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
-                  />
-                </div>
-
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
                   <Send size={18} />
                   {submitting ? 'Submitting...' : 'Submit Application'}
@@ -1069,7 +1090,7 @@ function PublicDashboard({ user, onLogout }) {
                       <tr>
                         <th>Name</th>
                         <th>Dates</th>
-                        <th>Status</th>
+                        <th>State</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1091,9 +1112,7 @@ function PublicDashboard({ user, onLogout }) {
                             </div>
                           </td>
                           <td>
-                            <span className={`status-badge ${leave.status}`}>
-                              {leave.status}
-                            </span>
+                            {renderStatusBadge(leave.status)}
                           </td>
                         </tr>
                       ))}
@@ -1153,11 +1172,11 @@ function PublicDashboard({ user, onLogout }) {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem' }}>
                       <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: 'linear-gradient(to right, var(--color-primary) 50%, #f0f0f0 50%)', border: '1px solid var(--color-primary)' }}></span>
-                      <span>1st Half</span>
+                      <span>8am-12pm</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem' }}>
                       <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: 'linear-gradient(to right, #f0f0f0 50%, var(--color-primary) 50%)', border: '1px solid var(--color-primary)' }}></span>
-                      <span>2nd Half</span>
+                      <span>12pm-4pm</span>
                     </div>
                   </div>
 
@@ -1199,7 +1218,7 @@ function PublicDashboard({ user, onLogout }) {
                           const isHalfDay = leaveForDate.leave_duration === 'half_day'
                           if (isHalfDay) {
                             dayClass += leaveForDate.half_day_period === 'morning' ? ' history-half-1st' : ' history-half-2nd'
-                            tooltip = leaveForDate.half_day_period === 'morning' ? '1st Half' : '2nd Half'
+                            tooltip = leaveForDate.half_day_period === 'morning' ? '8am-12pm' : '12pm-4pm'
                           } else {
                             dayClass += ' history-full'
                             tooltip = 'Full Day'
@@ -1241,7 +1260,7 @@ function PublicDashboard({ user, onLogout }) {
                           <tr>
                             <th>Dates</th>
                             <th>Applied</th>
-                            <th>Status</th>
+                            <th>State</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1263,9 +1282,7 @@ function PublicDashboard({ user, onLogout }) {
                                 {leave.applied_at ? new Date(leave.applied_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '-'}
                               </td>
                               <td>
-                                <span className={`status-badge ${leave.status}`}>
-                                  {leave.status}
-                                </span>
+                                {renderStatusBadge(leave.status)}
                               </td>
                             </tr>
                           ))}
