@@ -10,31 +10,33 @@ import {
   Clock,
   Users,
   Filter,
-  X as XIcon
+  X as XIcon,
+  History,
+  ChevronLeft,
+  ChevronRight,
+  LogOut
 } from 'lucide-react'
 
-function PublicDashboard() {
+function PublicDashboard({ user, onLogout }) {
   const [employees, setEmployees] = useState([])
   const [allLeaves, setAllLeaves] = useState([])
   const [todayLeaves, setTodayLeaves] = useState([])
+  const [myLeaves, setMyLeaves] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('apply') // 'apply' or 'history'
+  const [historyMonth, setHistoryMonth] = useState(new Date())
 
-  // Form state
+  // Form state - employee_name is auto-set from user
   const [formData, setFormData] = useState({
-    employee_name: '',
+    employee_name: user?.name || '',
     dates: [],
     reason: '',
     covering_officer: '',
     leave_duration: 'full_day', // 'full_day' or 'half_day'
     half_day_period: '' // 'morning' or 'evening' - only for half_day
   })
-
-  // Autocomplete state for employee name
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [filteredEmployees, setFilteredEmployees] = useState([])
-  const inputRef = useRef(null)
 
   // Autocomplete state for covering officer
   const [showCoveringSuggestions, setShowCoveringSuggestions] = useState(false)
@@ -51,7 +53,15 @@ function PublicDashboard() {
 
   useEffect(() => {
     fetchData()
+    fetchMyLeaves()
   }, [])
+
+  // Set employee name from user when user changes
+  useEffect(() => {
+    if (user?.name) {
+      setFormData(prev => ({ ...prev, employee_name: user.name }))
+    }
+  }, [user])
 
   // Check for date conflicts whenever dates change
   useEffect(() => {
@@ -123,18 +133,21 @@ function PublicDashboard() {
     }
   }
 
+  const fetchMyLeaves = async () => {
+    try {
+      const res = await axios.get('/api/auth/my-leaves')
+      setMyLeaves(Array.isArray(res?.data) ? res.data : [])
+    } catch (err) {
+      console.error('Error fetching my leaves:', err)
+      setMyLeaves([])
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    // Find employee by name
-    const employee = employees.find(emp => 
-      emp.name.toLowerCase() === formData.employee_name.toLowerCase()
-    )
-
-    if (!employee) {
-      setMessage({ type: 'error', text: 'Name not found! Please select a valid name from the suggestions.' })
-      return
-    }
+    // Use the logged-in user's ID
+    const employee = { id: user.id, name: user.name }
     
     if (formData.dates.length === 0) {
       setMessage({ type: 'error', text: 'Please select at least one date' })
@@ -236,7 +249,7 @@ function PublicDashboard() {
       
       setMessage({ type: 'success', text: 'Leave application submitted successfully!' })
       setFormData({
-        employee_name: '',
+        employee_name: user?.name || '',
         dates: [],
         reason: '',
         covering_officer: '',
@@ -246,28 +259,11 @@ function PublicDashboard() {
       
       // Refresh data
       fetchData()
+      fetchMyLeaves()
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to submit leave application' })
     } finally {
       setSubmitting(false)
-    }
-  }
-
-  const handleNameChange = (e) => {
-    const value = e.target.value
-    setFormData(prev => ({ ...prev, employee_name: value }))
-    
-    if (value.length > 0) {
-      const filtered = employees.filter(emp => {
-        const nameMatch = emp.name.toLowerCase().includes(value.toLowerCase())
-        const paysheetMatch = emp.paysheet_number && emp.paysheet_number.includes(value)
-        return nameMatch || paysheetMatch
-      })
-      setFilteredEmployees(filtered)
-      setShowSuggestions(true)
-    } else {
-      setFilteredEmployees([])
-      setShowSuggestions(false)
     }
   }
 
@@ -287,19 +283,6 @@ function PublicDashboard() {
       setFilteredCoveringOfficers([])
       setShowCoveringSuggestions(false)
     }
-  }
-
-  // Check if entered name is valid
-  const isNameValid = () => {
-    if (!formData.employee_name) return true // Empty is ok (will be caught by required)
-    return employees.some(emp => 
-      emp.name.toLowerCase() === formData.employee_name.toLowerCase()
-    )
-  }
-
-  const selectEmployee = (name) => {
-    setFormData(prev => ({ ...prev, employee_name: name }))
-    setShowSuggestions(false)
   }
 
   const selectCoveringOfficer = (name) => {
@@ -498,6 +481,10 @@ function PublicDashboard() {
             <span className="header-subtitle">Leave Tracker</span>
           </div>
         </div>
+        <button className="btn-logout" onClick={onLogout} title="Logout" style={{ marginLeft: 'auto' }}>
+          <LogOut size={16} />
+          <span style={{ fontSize: '0.8rem' }}>logout</span>
+        </button>
       </header>
 
       <main className="public-main">
@@ -519,6 +506,25 @@ function PublicDashboard() {
           </div>
         )}
 
+        {/* Tabs */}
+        <div className="dashboard-tabs">
+          <button 
+            className={`tab-btn ${activeTab === 'apply' ? 'active' : ''}`}
+            onClick={() => setActiveTab('apply')}
+          >
+            <CalendarDays size={18} />
+            Apply for Leave
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            <History size={18} />
+            My Leave History
+          </button>
+        </div>
+
+        {activeTab === 'apply' && (
         <div className="public-grid">
           {/* Leave Application Form */}
           <div className="card">
@@ -539,44 +545,18 @@ function PublicDashboard() {
               <form onSubmit={handleSubmit}>
                 <div className="form-group">
                   <label className="form-label">Name of the Physiotherapist</label>
-                  <div className="autocomplete-wrapper">
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Enter Name/ Paysheet No to select"
-                      value={formData.employee_name}
-                      onChange={handleNameChange}
-                      onFocus={() => formData.employee_name && setShowSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                      ref={inputRef}
-                      required
-                    />
-                    {showSuggestions && filteredEmployees.length > 0 && (
-                      <div className="autocomplete-dropdown">
-                        {filteredEmployees.map(emp => (
-                          <div 
-                            key={emp.id} 
-                            className="autocomplete-item"
-                            onClick={() => selectEmployee(emp.name)}
-                          >
-                            <span>{emp.name}</span>
-                            {emp.paysheet_number && (
-                              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
-                                ({emp.paysheet_number})
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {formData.employee_name && filteredEmployees.length === 0 && (
-                      <div className="autocomplete-dropdown">
-                        <div className="autocomplete-no-match">
-                          No matching name found. Please select from the list.
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={user?.name || ''}
+                    disabled
+                    style={{ 
+                      backgroundColor: 'var(--color-bg)', 
+                      color: 'var(--color-primary)',
+                      fontWeight: '500',
+                      cursor: 'not-allowed'
+                    }}
+                  />
                 </div>
 
                 <div className="form-group">
@@ -930,6 +910,173 @@ function PublicDashboard() {
             </div>
           </div>
         </div>
+        )}
+
+        {activeTab === 'history' && (
+          <div className="my-history-section">
+            <div className="card">
+              <div className="card-header">
+                <h3>
+                  <History size={18} />
+                  My Leave History
+                </h3>
+              </div>
+              <div className="card-body">
+                {/* History Calendar */}
+                <div className="history-calendar">
+                  <div className="history-calendar-header">
+                    <button 
+                      type="button" 
+                      className="calendar-nav-btn"
+                      onClick={() => setHistoryMonth(prev => {
+                        const newDate = new Date(prev)
+                        newDate.setMonth(prev.getMonth() - 1)
+                        return newDate
+                      })}
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <h4 className="calendar-month-year">
+                      {historyMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </h4>
+                    <button 
+                      type="button" 
+                      className="calendar-nav-btn"
+                      onClick={() => setHistoryMonth(prev => {
+                        const newDate = new Date(prev)
+                        newDate.setMonth(prev.getMonth() + 1)
+                        return newDate
+                      })}
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                  
+                  <div className="history-legend">
+                    <div className="legend-item">
+                      <span className="legend-color full-day"></span>
+                      <span>Full Day</span>
+                    </div>
+                    <div className="legend-item">
+                      <span className="legend-color half-day"></span>
+                      <span>Half Day</span>
+                    </div>
+                  </div>
+
+                  <div className="calendar-weekdays">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                      <div key={day} className="calendar-weekday">{day}</div>
+                    ))}
+                  </div>
+                  <div className="calendar-days">
+                    {(() => {
+                      const year = historyMonth.getFullYear()
+                      const month = historyMonth.getMonth()
+                      const firstDay = new Date(year, month, 1)
+                      const lastDay = new Date(year, month + 1, 0)
+                      const daysInMonth = lastDay.getDate()
+                      const startingDayOfWeek = firstDay.getDay()
+                      
+                      const days = []
+                      
+                      // Add empty cells for days before the first day of the month
+                      for (let i = 0; i < startingDayOfWeek; i++) {
+                        days.push(<div key={`empty-${i}`} className="calendar-day empty"></div>)
+                      }
+                      
+                      // Add all days of the month
+                      for (let day = 1; day <= daysInMonth; day++) {
+                        const dateStr = formatDateString(year, month, day)
+                        
+                        // Find approved leave for this date (only show approved)
+                        const leaveForDate = myLeaves.find(leave => 
+                          leave.dates && leave.dates.includes(dateStr) && 
+                          leave.status === 'approved'
+                        )
+                        
+                        let dayClass = 'calendar-day history-day'
+                        let tooltip = ''
+                        
+                        if (leaveForDate) {
+                          const isHalfDay = leaveForDate.leave_duration === 'half_day'
+                          dayClass += isHalfDay ? ' half-day-approved' : ' full-day-approved'
+                          tooltip = isHalfDay 
+                            ? `Half Day (${leaveForDate.half_day_period === 'morning' ? '8am-12pm' : '12pm-4pm'})`
+                            : 'Full Day'
+                        }
+                        
+                        days.push(
+                          <div 
+                            key={dateStr} 
+                            className={dayClass}
+                            title={tooltip}
+                          >
+                            {day}
+                          </div>
+                        )
+                      }
+                      
+                      return days
+                    })()}
+                  </div>
+                </div>
+
+                {/* Leave History List */}
+                <div className="history-list" style={{ marginTop: '1.5rem' }}>
+                  <h4 style={{ marginBottom: '1rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                    Recent Leave Applications
+                  </h4>
+                  {myLeaves.length === 0 ? (
+                    <div className="empty-state">
+                      <div className="empty-state-icon">
+                        <CalendarDays size={28} />
+                      </div>
+                      <p>No leave applications yet</p>
+                    </div>
+                  ) : (
+                    <div className="table-container" style={{ maxHeight: '400px' }}>
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Dates</th>
+                            <th>Leave Type</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {myLeaves.map(leave => (
+                            <tr key={leave.id}>
+                              <td>
+                                <div className="dates-list">
+                                  {leave.dates && leave.dates.slice(0, 2).map((date, idx) => (
+                                    <span key={idx} className="date-tag">
+                                      {formatDate(date)}
+                                    </span>
+                                  ))}
+                                  {leave.dates && leave.dates.length > 2 && (
+                                    <span className="date-tag more">+{leave.dates.length - 2}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td>
+                                <span className="leave-type-badge">{formatLeaveDuration(leave)}</span>
+                              </td>
+                              <td>
+                                <span className={`status-badge ${leave.status}`}>
+                                  {leave.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )

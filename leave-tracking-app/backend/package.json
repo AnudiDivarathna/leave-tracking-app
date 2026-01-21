@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "init-mongo": "node initMongoEmployees.js"
+    "init-mongo": "node initMongoEmployees.js",
+    "migrate-auth": "node migrateAuth.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

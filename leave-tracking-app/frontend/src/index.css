@@ -124,6 +124,159 @@ body {
   gap: 1rem;
 }
 
+/* Header User Info */
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-info-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: white;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.user-paysheet {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.btn-logout {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  transition: all 0.2s ease;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Dashboard Tabs */
+.dashboard-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  background: var(--color-bg-card);
+  padding: 0.5rem;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  color: white;
+}
+
+/* My History Section */
+.my-history-section {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* History Calendar */
+.history-calendar {
+  background: var(--color-bg);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.history-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.history-legend {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+.legend-color.full-day {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+}
+
+.legend-color.half-day {
+  background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-accent-light) 100%);
+}
+
+
+/* History Calendar Days */
+.history-day {
+  cursor: default;
+  position: relative;
+}
+
+.history-day.full-day-approved {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  color: white;
+  font-weight: 600;
+  border-color: var(--color-primary);
+}
+
+.history-day.half-day-approved {
+  background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-accent-light) 100%);
+  color: white;
+  font-weight: 600;
+  border-color: var(--color-warning);
+}
+
+
 .header-logo {
   display: flex;
   align-items: center;
@@ -2329,6 +2482,58 @@ input[type="radio"]:hover {
   .custom-calendar {
     max-width: 340px;
     padding: 0.85rem;
+  }
+
+  /* Header User Info Mobile */
+  .header-user {
+    width: 100%;
+    justify-content: space-between;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    margin-top: 0.5rem;
+  }
+
+  .user-info-header {
+    align-items: flex-start;
+  }
+
+  .user-name {
+    font-size: 0.9rem;
+  }
+
+  .user-paysheet {
+    font-size: 0.75rem;
+  }
+
+  /* Dashboard Tabs Mobile */
+  .dashboard-tabs {
+    padding: 0.35rem;
+    gap: 0.35rem;
+  }
+
+  .tab-btn {
+    padding: 0.6rem 0.5rem;
+    font-size: 0.8rem;
+    gap: 0.35rem;
+  }
+
+  .tab-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* History Calendar Mobile */
+  .history-legend {
+    gap: 0.75rem;
+  }
+
+  .legend-item {
+    font-size: 0.75rem;
+  }
+
+  .legend-color {
+    width: 12px;
+    height: 12px;
   }
 
   /* Headers */
