@@ -437,7 +437,8 @@ function Login({ onLogin }) {
               {loading ? 'Logging in...' : 'Login'}
             </button>
 
-            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', textAlign: 'center', marginTop: '0.5rem' }}>
+            <p style={{ fontSize: '0.95rem', color: 'var(--color-text-muted)', textAlign: 'center', marginTop: '1rem' }}>
+              Don't have an account?{' '}
               <button 
                 type="button" 
                 onClick={switchToFirstLogin}
@@ -446,11 +447,12 @@ function Login({ onLogin }) {
                   border: 'none', 
                   color: 'var(--color-primary)', 
                   cursor: 'pointer',
-                  fontWeight: '500',
-                  padding: 0
+                  fontWeight: '600',
+                  padding: 0,
+                  fontSize: '0.95rem'
                 }}
               >
-                Set up account
+                Sign Up
               </button>
             </p>
           </form>
