@@ -273,6 +273,10 @@ function PublicDashboard({ user, onLogout }) {
     
     if (value.length > 0) {
       const filtered = employees.filter(emp => {
+        // Exclude the logged-in user from the covering officer list
+        if (emp.id === user?.id || emp.name === user?.name) {
+          return false
+        }
         const nameMatch = emp.name.toLowerCase().includes(value.toLowerCase())
         const paysheetMatch = emp.paysheet_number && emp.paysheet_number.includes(value)
         return nameMatch || paysheetMatch
