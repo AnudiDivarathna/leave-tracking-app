@@ -44,7 +44,7 @@ function PublicDashboard() {
   // Date picker state
   const [dateConflicts, setDateConflicts] = useState({})
   const [showTooltip, setShowTooltip] = useState(false)
-  const [dateFilter, setDateFilter] = useState('') // Filter by date
+  const [nameFilter, setNameFilter] = useState('') // Filter by name
   const [showCalendar, setShowCalendar] = useState(false)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const calendarRef = useRef(null)
@@ -454,24 +454,23 @@ function PublicDashboard() {
     return selectedDate >= today
   }
 
-  // Show both approved and pending leaves, filtered and sorted by date
+  // Show both approved and pending leaves, filtered and sorted
   const allLeavesList = allLeaves
     .filter(l => {
       // Filter by status
       if (l.status !== 'approved' && l.status !== 'pending') return false
       
-      // Filter by date if filter is set
-      if (dateFilter) {
-        if (l.dates && Array.isArray(l.dates)) {
-          return l.dates.includes(dateFilter)
-        }
-        return false
+      // Filter by name if filter is set
+      if (nameFilter) {
+        const employeeName = (l.employee_name || '').toLowerCase()
+        const filterText = nameFilter.toLowerCase()
+        if (!employeeName.includes(filterText)) return false
       }
       
       return true
     })
     .sort((a, b) => {
-      // Always sort by newest first
+      // Sort by newest first
       const dateA = new Date(a.applied_at)
       const dateB = new Date(b.applied_at)
       return dateB - dateA
@@ -852,42 +851,29 @@ function PublicDashboard() {
                 All Leaves (Approved & Pending)
               </h3>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)' }}>
-              <div className="filter-group-compact" style={{ width: '250px', justifyContent: 'center' }}>
-                <Filter size={16} style={{ color: 'var(--color-text-muted)' }} />
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
+            <div className="filters-container" style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)' }}>
+              <div className="filters-row">
+                <div className="filter-group-compact" style={{ maxWidth: '300px', margin: '0 auto' }}>
+                  <Filter size={16} style={{ color: 'var(--color-text-muted)' }} />
                   <input
-                    type="date"
+                    type="text"
                     className="form-input-compact"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    title="Filter by date"
-                    style={{ color: dateFilter ? 'var(--color-text)' : 'transparent', width: '100%' }}
+                    value={nameFilter}
+                    onChange={(e) => setNameFilter(e.target.value)}
+                    placeholder="Filter by name"
+                    title="Filter by name"
+                    style={{ flex: 1 }}
                   />
-                  {!dateFilter && (
-                    <span style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      fontSize: '0.85rem',
-                      color: 'var(--color-text-muted)',
-                      pointerEvents: 'none',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      Filter by date
-                    </span>
+                  {nameFilter && (
+                    <button
+                      className="btn-icon-compact"
+                      onClick={() => setNameFilter('')}
+                      title="Clear name filter"
+                    >
+                      <XIcon size={14} />
+                    </button>
                   )}
                 </div>
-                {dateFilter && (
-                  <button
-                    className="btn-icon-compact"
-                    onClick={() => setDateFilter('')}
-                    title="Clear filter"
-                  >
-                    <XIcon size={14} />
-                  </button>
-                )}
               </div>
             </div>
             <div className="card-body" style={{ padding: 0 }}>

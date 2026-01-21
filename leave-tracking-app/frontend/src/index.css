@@ -860,6 +860,29 @@ body {
   flex-wrap: wrap;
 }
 
+/* Filters Container */
+.filters-container {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.filters-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 600px;
+}
+
+.filters-row .filter-group-compact {
+  flex: 1;
+  min-width: 200px;
+  max-width: 250px;
+}
+
 .filter-active-text {
   font-size: 0.85rem;
   color: var(--color-primary);
@@ -2437,6 +2460,23 @@ input[type="radio"]:hover {
   .form-input-compact {
     flex: 1;
     min-width: 0;
+  }
+
+  .filters-container {
+    padding: 0.75rem !important;
+  }
+
+  .filters-row {
+    flex-direction: row;
+    gap: 0.5rem;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .filters-row .filter-group-compact {
+    flex: 1;
+    min-width: calc(50% - 0.25rem);
+    max-width: 100%;
   }
 
   .form-select-compact {

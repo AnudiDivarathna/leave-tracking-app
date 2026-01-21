@@ -21,8 +21,9 @@ function AdminDashboard() {
   const [expandedEmployee, setExpandedEmployee] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTooltip, setActiveTooltip] = useState(null)
-  const [employeeNameFilter, setEmployeeNameFilter] = useState('') // Filter by employee name
+  const [employeeNameFilter, setEmployeeNameFilter] = useState('') // Filter by employee name for employees section
   const [dateFilter, setDateFilter] = useState('') // Filter by date for recently applied leaves
+  const [recentNameFilter, setRecentNameFilter] = useState('') // Filter by name for recently applied leaves
   const [updatingLeaveId, setUpdatingLeaveId] = useState(null) // Track which leave is being updated
 
   useEffect(() => {
@@ -215,17 +216,42 @@ function AdminDashboard() {
       return dateB - dateA
     })
 
-  const pendingLeaves = filteredLeaves.filter(l => l.status === 'pending')
+  // Filter and sort pending leaves
+  const pendingLeaves = filteredLeaves
+    .filter(l => l.status === 'pending')
+    .sort((a, b) => {
+      // Sort by newest first
+      const dateA = new Date(a.applied_at)
+      const dateB = new Date(b.applied_at)
+      return dateB - dateA
+    })
   
-  // Filter recent leaves by date
+  // Filter recent leaves by date and name, then sort
   const recentLeaves = filteredLeaves
     .filter(leave => {
-      if (!dateFilter) return true
-      // Check if any of the leave dates match the filter date
-      if (leave.dates && Array.isArray(leave.dates)) {
-        return leave.dates.includes(dateFilter)
+      // Filter by date if filter is set
+      if (dateFilter) {
+        if (leave.dates && Array.isArray(leave.dates)) {
+          if (!leave.dates.includes(dateFilter)) return false
+        } else {
+          return false
+        }
       }
-      return false
+      
+      // Filter by name if filter is set
+      if (recentNameFilter) {
+        const employeeName = (leave.employee_name || '').toLowerCase()
+        const filterText = recentNameFilter.toLowerCase()
+        if (!employeeName.includes(filterText)) return false
+      }
+      
+      return true
+    })
+    .sort((a, b) => {
+      // Sort by newest first
+      const dateA = new Date(a.applied_at)
+      const dateB = new Date(b.applied_at)
+      return dateB - dateA
     })
     .slice(0, 10)
   
@@ -313,42 +339,64 @@ function AdminDashboard() {
               Recently Applied Leaves
             </h3>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)' }}>
-            <div className="filter-group-compact" style={{ width: '250px', justifyContent: 'center' }}>
-              <Filter size={16} style={{ color: 'var(--color-text-muted)' }} />
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
-                <input
-                  type="date"
-                  className="form-input-compact"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  title="Filter by date"
-                  style={{ color: dateFilter ? 'var(--color-text)' : 'transparent', width: '100%' }}
-                />
-                {!dateFilter && (
-                  <span style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    fontSize: '0.85rem',
-                    color: 'var(--color-text-muted)',
-                    pointerEvents: 'none',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    Filter by date
-                  </span>
+          <div className="filters-container" style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)' }}>
+            <div className="filters-row">
+              <div className="filter-group-compact">
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
+                  <input
+                    type="date"
+                    className="form-input-compact"
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    title="Filter by date"
+                    style={{ color: dateFilter ? 'var(--color-text)' : 'transparent', width: '100%' }}
+                  />
+                  {!dateFilter && (
+                    <span style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '0.85rem',
+                      color: 'var(--color-text-muted)',
+                      pointerEvents: 'none',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      Filter by date
+                    </span>
+                  )}
+                </div>
+                {dateFilter && (
+                  <button
+                    className="btn-icon-compact"
+                    onClick={() => setDateFilter('')}
+                    title="Clear date filter"
+                  >
+                    <XIcon size={14} />
+                  </button>
                 )}
               </div>
-              {dateFilter && (
-                <button
-                  className="btn-icon-compact"
-                  onClick={() => setDateFilter('')}
-                  title="Clear date filter"
-                >
-                  <XIcon size={14} />
-                </button>
-              )}
+              <div className="filter-group-compact">
+                <Filter size={16} style={{ color: 'var(--color-text-muted)' }} />
+                <input
+                  type="text"
+                  className="form-input-compact"
+                  value={recentNameFilter}
+                  onChange={(e) => setRecentNameFilter(e.target.value)}
+                  placeholder="Filter by name"
+                  title="Filter by name"
+                  style={{ flex: 1 }}
+                />
+                {recentNameFilter && (
+                  <button
+                    className="btn-icon-compact"
+                    onClick={() => setRecentNameFilter('')}
+                    title="Clear name filter"
+                  >
+                    <XIcon size={14} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           <div className="card-body" style={{ padding: 0 }}>
