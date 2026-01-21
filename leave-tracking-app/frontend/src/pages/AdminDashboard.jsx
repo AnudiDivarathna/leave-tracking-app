@@ -561,7 +561,6 @@ function AdminDashboard() {
                       <th>Name</th>
                       <th>Selected Dates</th>
                       <th>Covering</th>
-                      <th>State</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -584,9 +583,6 @@ function AdminDashboard() {
                         </td>
                         <td>
                           <span className="employee-cell-name" style={{ fontSize: '0.8rem' }}>{leave.covering_officer || '-'}</span>
-                        </td>
-                        <td>
-                          {renderStatusBadge(leave.status)}
                         </td>
                       </tr>
                     ))}
@@ -843,7 +839,6 @@ function AdminDashboard() {
                                 <th>Applied On</th>
                                 <th>Dates</th>
                                 <th>Covering</th>
-                                <th>State</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -854,9 +849,6 @@ function AdminDashboard() {
                                     {renderDatesWithTooltip(leave.dates, 2, `employee-${employee.id}-${leave.id}`, leave)}
                                   </td>
                                   <td style={{ fontSize: '0.8rem' }}>{leave.covering_officer || '-'}</td>
-                                  <td>
-                                    {renderStatusBadge(leave.status)}
-                                  </td>
                                 </tr>
                               ))}
                             </tbody>
