@@ -24,9 +24,18 @@ function PublicDashboard({ user, onLogout }) {
   const [myLeaves, setMyLeaves] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
+  const [toast, setToast] = useState({ show: false, type: '', text: '' })
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('apply') // 'apply' or 'history'
   const [historyMonth, setHistoryMonth] = useState(new Date())
+
+  // Show toast notification
+  const showToast = (type, text) => {
+    setToast({ show: true, type, text })
+    setTimeout(() => {
+      setToast({ show: false, type: '', text: '' })
+    }, 5000)
+  }
 
   // Form state - employee_name is auto-set from user
   const [formData, setFormData] = useState({
@@ -150,13 +159,13 @@ function PublicDashboard({ user, onLogout }) {
     const employee = { id: user.id, name: user.name }
     
     if (formData.dates.length === 0) {
-      setMessage({ type: 'error', text: 'Please select at least one date' })
+      showToast('error', 'Please select at least one date')
       return
     }
 
     // Validate covering officer is provided
     if (!formData.covering_officer) {
-      setMessage({ type: 'error', text: 'Please select a covering officer' })
+      showToast('error', 'Please select a covering officer')
       return
     }
 
@@ -166,20 +175,20 @@ function PublicDashboard({ user, onLogout }) {
     )
 
     if (!coveringOfficer) {
-      setMessage({ type: 'error', text: 'Covering officer not found! Please select a valid name from the suggestions.' })
+      showToast('error', 'Covering officer not found! Please select a valid name from the suggestions.')
       return
     }
 
     // Validate all dates are not past
     const invalidDates = formData.dates.filter(date => !isValidDate(date))
     if (invalidDates.length > 0) {
-      setMessage({ type: 'error', text: 'Cannot submit past dates. Please select today or future dates only.' })
+      showToast('error', 'Cannot submit past dates. Please select today or future dates only.')
       return
     }
 
     // Validate half day period if half day is selected
     if (formData.leave_duration === 'half_day' && !formData.half_day_period) {
-      setMessage({ type: 'error', text: 'Please select 8 am - 12 pm or 12 pm to 4 pm for half day leave' })
+      showToast('error', 'Please select 8 am - 12 pm or 12 pm to 4 pm for half day leave')
       return
     }
 
@@ -224,10 +233,8 @@ function PublicDashboard({ user, onLogout }) {
         const dateStr = duplicateDates.length === 1 
           ? formatDate(duplicateDates[0])
           : `${duplicateDates.length} dates`
-        setMessage({ 
-          type: 'error', 
-          text: `You have already applied for ${formData.leave_duration === 'half_day' ? 'half day' : 'full day'} leave on ${dateStr}. Please check your existing applications.` 
-        })
+        const errorMsg = `You have already applied for ${formData.leave_duration === 'half_day' ? 'half day' : 'full day'} leave on ${dateStr}. Please check your existing applications.`
+        showToast('error', errorMsg)
         return
       }
     }
@@ -248,6 +255,7 @@ function PublicDashboard({ user, onLogout }) {
       })
       
       setMessage({ type: 'success', text: 'Leave application submitted successfully!' })
+      showToast('success', 'Leave application submitted successfully!')
       setFormData({
         employee_name: user?.name || '',
         dates: [],
@@ -261,7 +269,9 @@ function PublicDashboard({ user, onLogout }) {
       fetchData()
       fetchMyLeaves()
     } catch (err) {
-      setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to submit leave application' })
+      const errorMsg = err.response?.data?.error || 'Failed to submit leave application'
+      setMessage({ type: 'error', text: errorMsg })
+      showToast('error', errorMsg)
     } finally {
       setSubmitting(false)
     }
@@ -324,7 +334,7 @@ function PublicDashboard({ user, onLogout }) {
   const toggleDate = (dateStr) => {
     // Validate date is not past
     if (!isValidDate(dateStr)) {
-      setMessage({ type: 'error', text: 'Cannot select past dates. Please select today or a future date.' })
+      showToast('error', 'Cannot select past dates. Please select today or a future date.')
       return
     }
 
@@ -473,6 +483,16 @@ function PublicDashboard({ user, onLogout }) {
 
   return (
     <div className="public-layout">
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="toast-container">
+          <div className={`toast toast-${toast.type}`}>
+            {toast.type === 'success' ? <CheckCircle size={20} /> : <XCircle size={20} />}
+            <span>{toast.text}</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="public-header">
         <div className="header-content">
