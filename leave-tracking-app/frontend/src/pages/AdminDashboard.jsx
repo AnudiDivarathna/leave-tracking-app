@@ -199,6 +199,23 @@ function AdminDashboard() {
     return leave.leave_duration
   }
 
+  // Get status icon
+  const getStatusIcon = (status) => {
+    const iconSize = 16
+    const iconStyle = { marginRight: '6px', verticalAlign: 'middle' }
+    
+    if (status === 'approved') {
+      return <CheckCircle size={iconSize} style={iconStyle} color="var(--color-success)" />
+    }
+    if (status === 'rejected') {
+      return <XCircle size={iconSize} style={iconStyle} color="var(--color-danger)" />
+    }
+    if (status === 'pending') {
+      return <Clock size={iconSize} style={iconStyle} color="var(--color-warning)" />
+    }
+    return null
+  }
+
   // Render status badge with icon
   const renderStatusBadge = (status) => {
     const iconSize = 12
@@ -567,7 +584,10 @@ function AdminDashboard() {
                     {groupedRecentLeaves.map(leave => (
                       <tr key={leave.id}>
                         <td>
-                          <span className="employee-cell-name">{leave.employee_name}</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            {getStatusIcon(leave.status)}
+                            <span className="employee-cell-name">{leave.employee_name}</span>
+                          </span>
                         </td>
                         <td>
                           <div className="dates-list">
@@ -844,7 +864,12 @@ function AdminDashboard() {
                             <tbody>
                               {getEmployeeLeaves(employee.id).slice(0, 5).map(leave => (
                                 <tr key={leave.id}>
-                                  <td>{formatDate(leave.applied_at)}</td>
+                                  <td>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                      {getStatusIcon(leave.status)}
+                                      {formatDate(leave.applied_at)}
+                                    </span>
+                                  </td>
                                   <td>
                                     {renderDatesWithTooltip(leave.dates, 2, `employee-${employee.id}-${leave.id}`, leave)}
                                   </td>
