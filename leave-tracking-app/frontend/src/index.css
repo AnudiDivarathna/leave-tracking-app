@@ -274,18 +274,27 @@ body {
   position: relative;
 }
 
-.history-day.full-day-approved {
+.history-day.history-full {
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
   color: white;
   font-weight: 600;
   border-color: var(--color-primary);
 }
 
-.history-day.half-day-approved {
-  background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-accent-light) 100%);
-  color: white;
+/* 1st Half - LEFT half filled */
+.history-day.history-half-1st {
+  background: linear-gradient(to right, var(--color-primary) 50%, #ffffff 50%);
+  color: var(--color-text);
   font-weight: 600;
-  border-color: var(--color-warning);
+  border-color: var(--color-primary);
+}
+
+/* 2nd Half - RIGHT half filled */
+.history-day.history-half-2nd {
+  background: linear-gradient(to right, #ffffff 50%, var(--color-primary) 50%);
+  color: var(--color-text);
+  font-weight: 600;
+  border-color: var(--color-primary);
 }
 
 
@@ -1817,7 +1826,7 @@ input[type="radio"]:hover {
   cursor: pointer;
   font-size: 0.9rem;
   color: var(--color-text);
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1827,15 +1836,35 @@ input[type="radio"]:hover {
   box-sizing: border-box;
 }
 
-.calendar-day:hover:not(.past):not(.empty) {
+.calendar-day:hover:not(.past):not(.empty):not(.selected-full):not(.selected-half-am):not(.selected-half-pm) {
   background: var(--color-primary-light);
   color: white;
   border-color: var(--color-primary);
 }
 
-.calendar-day.selected {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+.calendar-day.selected,
+.calendar-day.selected-full,
+.calendar-day.selected-full:hover {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%) !important;
   color: white;
+  border-color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Half AM (morning) - LEFT half filled */
+.calendar-day.selected-half-am,
+.calendar-day.selected-half-am:hover {
+  background: linear-gradient(to right, var(--color-primary) 50%, #ffffff 50%) !important;
+  color: var(--color-text);
+  border-color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Half PM (evening) - RIGHT half filled */
+.calendar-day.selected-half-pm,
+.calendar-day.selected-half-pm:hover {
+  background: linear-gradient(to right, #ffffff 50%, var(--color-primary) 50%) !important;
+  color: var(--color-text);
   border-color: var(--color-primary);
   font-weight: 600;
 }
@@ -1902,6 +1931,14 @@ input[type="radio"]:hover {
   border-radius: 20px;
   font-size: 0.85rem;
   font-weight: 500;
+}
+
+.chip-type {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.35rem;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  color: white;
 }
 
 .date-chip-remove {
@@ -2662,6 +2699,17 @@ input[type="radio"]:hover {
     height: 12px;
   }
 
+  /* My Leave History section */
+  .my-history-section {
+    max-width: 100%;
+    margin: 0;
+    width: 100%;
+  }
+
+  .history-calendar {
+    padding: 0.5rem;
+  }
+
   /* Headers - more compact on mobile */
   .public-header,
   .admin-header {
@@ -2729,6 +2777,21 @@ input[type="radio"]:hover {
   .public-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
+  }
+
+  /* My Leave History section - match public-grid */
+  .my-history-section {
+    max-width: 100%;
+    margin: 0;
+    width: 100%;
+  }
+
+  .my-history-section .card {
+    margin: 0;
+  }
+
+  .history-calendar {
+    padding: 0.75rem;
   }
 
   /* Today's leaves section */
@@ -3379,6 +3442,12 @@ input[type="radio"]:hover {
   .public-grid {
     grid-template-columns: 1fr;
   }
+
+  .my-history-section {
+    max-width: 100%;
+    margin: 0;
+    width: 100%;
+  }
   
   .public-header,
   .admin-header {
@@ -3411,6 +3480,13 @@ input[type="radio"]:hover {
 
   .page-title {
     font-size: 1.4rem;
+  }
+
+  /* My Leave History section - full width on mobile */
+  .my-history-section {
+    max-width: 100%;
+    margin: 0;
+    width: 100%;
   }
 
   /* Stats grid - 2 columns on mobile */

@@ -101,8 +101,51 @@ function AdminDashboard() {
     }
   }
 
+  // Handle status update for grouped leaves (updates all related leaves)
+  const handleGroupedStatusUpdate = async (groupedLeave, status) => {
+    const leaveIds = groupedLeave.originalLeaves.map(l => l.id)
+    
+    // Set loading state
+    setUpdatingLeaveId(groupedLeave.id)
+    
+    // Optimistic update
+    const previousLeaves = [...allLeaves]
+    setAllLeaves(prev => prev.map(leave => 
+      leaveIds.includes(leave.id) ? { ...leave, status } : leave
+    ))
+    
+    try {
+      // Update all related leaves
+      await Promise.all(leaveIds.map(id => 
+        axios.patch('/api/leaves-status', { id, status })
+      ))
+      
+      // Refetch data to ensure counts are accurate
+      try {
+        const [statsRes, employeesRes, leavesRes] = await Promise.all([
+          axios.get('/api/stats/overview'),
+          axios.get('/api/stats/employees'),
+          axios.get('/api/leaves')
+        ])
+        setStats(statsRes?.data || null)
+        setEmployees(Array.isArray(employeesRes?.data) ? employeesRes.data : [])
+        setAllLeaves(Array.isArray(leavesRes?.data) ? leavesRes.data : [])
+      } catch (statsErr) {
+        console.error('Error fetching updated data:', statsErr)
+      }
+    } catch (err) {
+      console.error('Error updating status:', err)
+      setAllLeaves(previousLeaves)
+      alert(`Failed to ${status} leave. Please try again.`)
+    } finally {
+      setUpdatingLeaveId(null)
+    }
+  }
+
   const getEmployeeLeaves = (userId) => {
-    return filteredLeaves.filter(leave => leave.user_id === userId)
+    return filteredLeaves
+      .filter(leave => leave.user_id === userId)
+      .sort((a, b) => new Date(b.applied_at) - new Date(a.applied_at))
   }
 
   const formatDate = (dateStr) => {
@@ -151,23 +194,30 @@ function AdminDashboard() {
       return 'Full Day'
     }
     if (leave.leave_duration === 'half_day') {
-      return 'Half Day'
+      return leave.half_day_period === 'morning' ? '1st Half' : '2nd Half'
     }
     return leave.leave_duration
   }
 
   // Render dates with tooltip
-  const renderDatesWithTooltip = (dates, maxVisible = 3, tooltipId) => {
+  const renderDatesWithTooltip = (dates, maxVisible = 3, tooltipId, leave = null) => {
     if (!dates || !Array.isArray(dates) || dates.length === 0) return null
     
     const visibleDates = dates.slice(0, maxVisible)
     const remainingCount = dates.length - maxVisible
     
+    // Get type suffix for half-day leaves
+    const getTypeSuffix = () => {
+      if (!leave || !leave.leave_duration || leave.leave_duration === 'full_day') return ''
+      return leave.half_day_period === 'morning' ? ' (1st Half)' : ' (2nd Half)'
+    }
+    const typeSuffix = getTypeSuffix()
+    
     return (
       <div className="dates-list">
         {visibleDates.map((date, idx) => (
           <span key={idx} className="date-tag">
-            {formatDate(date)}
+            {formatDate(date)}{typeSuffix}
           </span>
         ))}
         {remainingCount > 0 && (
@@ -187,7 +237,7 @@ function AdminDashboard() {
               <strong>All selected dates ({dates.length}):</strong>
               <div className="tooltip-dates-list">
                 {dates.map((date, idx) => (
-                  <span key={idx} className="tooltip-date">{formatDate(date)}</span>
+                  <span key={idx} className="tooltip-date">{formatDate(date)}{typeSuffix}</span>
                 ))}
               </div>
             </div>
@@ -263,6 +313,70 @@ function AdminDashboard() {
     return employeeName.includes(filterText)
   })
 
+  // Group leaves submitted together (within 10 seconds by same user)
+  const groupLeavesBySubmission = (leaves) => {
+    const grouped = []
+    const processed = new Set()
+    
+    leaves.forEach(leave => {
+      if (processed.has(leave.id)) return
+      
+      const leaveTime = new Date(leave.applied_at).getTime()
+      
+      // Find all leaves from same user within 10 seconds
+      const relatedLeaves = leaves.filter(l => {
+        if (processed.has(l.id)) return false
+        if (l.user_id !== leave.user_id && l.employee_name !== leave.employee_name) return false
+        const timeDiff = Math.abs(new Date(l.applied_at).getTime() - leaveTime)
+        return timeDiff < 10000 // 10 seconds
+      })
+      
+      // Mark all as processed
+      relatedLeaves.forEach(l => processed.add(l.id))
+      
+      // Combine into one grouped leave
+      const allDates = []
+      
+      relatedLeaves.forEach(l => {
+        if (l.dates && l.dates.length > 0) {
+          l.dates.forEach(date => {
+            const typeLabel = !l.leave_duration || l.leave_duration === 'full_day' 
+              ? '' 
+              : (l.half_day_period === 'morning' ? '1st Half' : '2nd Half')
+            allDates.push({ date, type: typeLabel, leave: l })
+          })
+        }
+      })
+      
+      // Sort dates
+      allDates.sort((a, b) => new Date(a.date) - new Date(b.date))
+      
+      grouped.push({
+        id: leave.id,
+        employee_name: leave.employee_name,
+        user_id: leave.user_id,
+        applied_at: leave.applied_at,
+        status: leave.status,
+        reason: leave.reason,
+        covering_officer: leave.covering_officer,
+        allDates: allDates,
+        originalLeaves: relatedLeaves
+      })
+    })
+    
+    return grouped
+  }
+
+  // Grouped versions of leaves
+  const groupedPendingLeaves = groupLeavesBySubmission(pendingLeaves)
+  const groupedRecentLeaves = groupLeavesBySubmission(recentLeaves)
+  
+  // Calculate grouped counts for approved and rejected leaves (from all leaves, not filtered)
+  const approvedLeaves = (Array.isArray(allLeaves) ? allLeaves : []).filter(l => l.status === 'approved')
+  const rejectedLeaves = (Array.isArray(allLeaves) ? allLeaves : []).filter(l => l.status === 'rejected')
+  const groupedApprovedLeaves = groupLeavesBySubmission(approvedLeaves)
+  const groupedRejectedLeaves = groupLeavesBySubmission(rejectedLeaves)
+
   if (loading) {
     return (
       <div className="loading-spinner" style={{ minHeight: '100vh' }}>
@@ -305,7 +419,7 @@ function AdminDashboard() {
               <Clock size={24} />
             </div>
             <div className="stat-content">
-              <h3 style={{ color: 'var(--color-warning)' }}>{stats?.pendingLeaves || 0}</h3>
+              <h3 style={{ color: 'var(--color-warning)' }}>{groupedPendingLeaves.length}</h3>
               <p>Pending Approvals</p>
             </div>
           </div>
@@ -315,7 +429,7 @@ function AdminDashboard() {
               <CheckCircle size={24} />
             </div>
             <div className="stat-content">
-              <h3>{stats?.approvedLeaves || 0}</h3>
+              <h3>{groupedApprovedLeaves.length}</h3>
               <p>Approved</p>
             </div>
           </div>
@@ -325,7 +439,7 @@ function AdminDashboard() {
               <XCircle size={24} />
             </div>
             <div className="stat-content">
-              <h3>{stats?.rejectedLeaves || 0}</h3>
+              <h3>{groupedRejectedLeaves.length}</h3>
               <p>Rejected</p>
             </div>
           </div>
@@ -414,21 +528,26 @@ function AdminDashboard() {
                     <tr>
                       <th>Physiotherapist</th>
                       <th>Selected Dates</th>
-                      <th>Leave Type</th>
                       <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {recentLeaves.map(leave => (
+                    {groupedRecentLeaves.map(leave => (
                       <tr key={leave.id}>
                         <td>
                           <span className="employee-cell-name">{leave.employee_name}</span>
                         </td>
                         <td>
-                          {renderDatesWithTooltip(leave.dates, 2, `recent-${leave.id}`)}
-                        </td>
-                        <td>
-                          <span className="leave-type-badge">{formatLeaveDuration(leave)}</span>
+                          <div className="dates-list">
+                            {leave.allDates && leave.allDates.slice(0, 3).map((item, idx) => (
+                              <span key={idx} className="date-tag">
+                                {formatDate(item.date)}{item.type ? ` (${item.type})` : ''}
+                              </span>
+                            ))}
+                            {leave.allDates && leave.allDates.length > 3 && (
+                              <span className="date-tag more">+{leave.allDates.length - 3}</span>
+                            )}
+                          </div>
                         </td>
                         <td>
                           <span className={`status-badge ${leave.status}`}>
@@ -449,11 +568,11 @@ function AdminDashboard() {
           <div className="card-header" style={{ background: 'linear-gradient(135deg, #fff5e6 0%, #fff 100%)' }}>
             <h3 style={{ color: 'var(--color-warning)' }}>
               <AlertCircle size={20} />
-              Pending Approvals ({pendingLeaves.length})
+              Pending Approvals ({groupedPendingLeaves.length})
             </h3>
           </div>
           <div className="card-body" style={{ padding: 0 }}>
-            {pendingLeaves.length === 0 ? (
+            {groupedPendingLeaves.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state-icon">
                   <CheckCircle size={28} />
@@ -476,16 +595,25 @@ function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {pendingLeaves.map(leave => (
+                      {groupedPendingLeaves.map(leave => (
                         <tr key={leave.id}>
                           <td>
                             <span className="employee-cell-name">{leave.employee_name}</span>
                           </td>
                           <td>
                             <div className="dates-cell">
-                              {renderDatesWithTooltip(leave.dates, 5, `pending-${leave.id}`)}
-                              {(leave.dates?.length || 0) > 1 && (
-                                <span className="days-count-badge">({leave.dates?.length || 0} days)</span>
+                              <div className="dates-list">
+                                {leave.allDates && leave.allDates.slice(0, 3).map((item, idx) => (
+                                  <span key={idx} className="date-tag">
+                                    {formatDate(item.date)}{item.type ? ` (${item.type})` : ''}
+                                  </span>
+                                ))}
+                                {leave.allDates && leave.allDates.length > 3 && (
+                                  <span className="date-tag more">+{leave.allDates.length - 3}</span>
+                                )}
+                              </div>
+                              {leave.allDates && leave.allDates.length > 1 && (
+                                <span className="days-count-badge">({leave.allDates.length} days)</span>
                               )}
                             </div>
                           </td>
@@ -502,7 +630,7 @@ function AdminDashboard() {
                             <div className="action-buttons">
                               <button 
                                 className="btn btn-success btn-small"
-                                onClick={() => handleStatusUpdate(leave.id, 'approved')}
+                                onClick={() => handleGroupedStatusUpdate(leave, 'approved')}
                                 disabled={updatingLeaveId === leave.id}
                               >
                                 {updatingLeaveId === leave.id ? (
@@ -514,7 +642,7 @@ function AdminDashboard() {
                               </button>
                               <button 
                                 className="btn btn-danger btn-small"
-                                onClick={() => handleStatusUpdate(leave.id, 'rejected')}
+                                onClick={() => handleGroupedStatusUpdate(leave, 'rejected')}
                                 disabled={updatingLeaveId === leave.id}
                               >
                                 {updatingLeaveId === leave.id ? (
@@ -534,25 +662,30 @@ function AdminDashboard() {
 
                 {/* Mobile Card View */}
                 <div className="mobile-pending-cards">
-                  {pendingLeaves.map(leave => (
+                  {groupedPendingLeaves.map(leave => (
                     <div key={leave.id} className="pending-card-mobile">
                       <div className="pending-card-header-mobile">
                         <div>
                           <div className="pending-employee-name">{leave.employee_name}</div>
-                          {(leave.dates?.length || 0) > 1 && (
+                          {leave.allDates && leave.allDates.length > 1 && (
                             <div className="pending-meta">
-                              <span className="pending-date-count">({leave.dates?.length || 0} days)</span>
+                              <span className="pending-date-count">({leave.allDates.length} days)</span>
                             </div>
                           )}
                         </div>
                       </div>
                       
                       <div className="pending-card-dates-mobile">
-                        {renderDatesWithTooltip(leave.dates, 3, `pending-mobile-${leave.id}`)}
-                      </div>
-
-                      <div className="pending-reason-mobile">
-                        <strong>Leave Type:</strong> {formatLeaveDuration(leave)}
+                        <div className="dates-list">
+                          {leave.allDates && leave.allDates.slice(0, 3).map((item, idx) => (
+                            <span key={idx} className="date-tag">
+                              {formatDate(item.date)}{item.type ? ` (${item.type})` : ''}
+                            </span>
+                          ))}
+                          {leave.allDates && leave.allDates.length > 3 && (
+                            <span className="date-tag more">+{leave.allDates.length - 3}</span>
+                          )}
+                        </div>
                       </div>
 
                       {leave.covering_officer && (
@@ -574,7 +707,7 @@ function AdminDashboard() {
                       <div className="pending-actions-mobile">
                         <button 
                           className="btn btn-success btn-mobile-approve"
-                          onClick={() => handleStatusUpdate(leave.id, 'approved')}
+                          onClick={() => handleGroupedStatusUpdate(leave, 'approved')}
                           disabled={updatingLeaveId === leave.id}
                         >
                           {updatingLeaveId === leave.id ? (
@@ -586,7 +719,7 @@ function AdminDashboard() {
                         </button>
                         <button 
                           className="btn btn-danger btn-mobile-reject"
-                          onClick={() => handleStatusUpdate(leave.id, 'rejected')}
+                          onClick={() => handleGroupedStatusUpdate(leave, 'rejected')}
                           disabled={updatingLeaveId === leave.id}
                         >
                           {updatingLeaveId === leave.id ? (
@@ -685,7 +818,6 @@ function AdminDashboard() {
                               <tr>
                                 <th>Applied On</th>
                                 <th>Dates</th>
-                                <th>Leave Type</th>
                                 <th>Status</th>
                               </tr>
                             </thead>
@@ -694,10 +826,7 @@ function AdminDashboard() {
                                 <tr key={leave.id}>
                                   <td>{formatDate(leave.applied_at)}</td>
                                   <td>
-                                    {renderDatesWithTooltip(leave.dates, 2, `employee-${employee.id}-${leave.id}`)}
-                                  </td>
-                                  <td>
-                                    <span className="leave-type-badge">{formatLeaveDuration(leave)}</span>
+                                    {renderDatesWithTooltip(leave.dates, 2, `employee-${employee.id}-${leave.id}`, leave)}
                                   </td>
                                   <td>
                                     <span className={`status-badge ${leave.status}`}>

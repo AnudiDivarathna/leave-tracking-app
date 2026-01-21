@@ -38,13 +38,12 @@ function PublicDashboard({ user, onLogout }) {
   }
 
   // Form state - employee_name is auto-set from user
+  // selectedDates format: { '2024-01-15': { type: 'full_day' }, '2024-01-16': { type: 'half_day', period: 'morning' } }
   const [formData, setFormData] = useState({
     employee_name: user?.name || '',
-    dates: [],
+    selectedDates: {},
     reason: '',
-    covering_officer: '',
-    leave_duration: 'full_day', // 'full_day' or 'half_day'
-    half_day_period: '' // 'morning' or 'evening' - only for half_day
+    covering_officer: ''
   })
 
   // Autocomplete state for covering officer
@@ -58,6 +57,7 @@ function PublicDashboard({ user, onLogout }) {
   const [nameFilter, setNameFilter] = useState('') // Filter by name
   const [showCalendar, setShowCalendar] = useState(false)
   const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [selectedLeaveType, setSelectedLeaveType] = useState('full_day') // 'full_day', 'half_am', 'half_pm'
   const calendarRef = useRef(null)
 
   useEffect(() => {
@@ -74,12 +74,12 @@ function PublicDashboard({ user, onLogout }) {
 
   // Check for date conflicts whenever dates change
   useEffect(() => {
-    if (formData.dates.length > 0 && formData.employee_name) {
+    if (Object.keys(formData.selectedDates || {}).length > 0 && formData.employee_name) {
       checkDateConflicts()
     } else {
       setDateConflicts({})
     }
-  }, [formData.dates, formData.employee_name, allLeaves])
+  }, [formData.selectedDates, formData.employee_name, allLeaves])
 
   // Close tooltip when clicking outside
   useEffect(() => {
@@ -157,8 +157,9 @@ function PublicDashboard({ user, onLogout }) {
     
     // Use the logged-in user's ID
     const employee = { id: user.id, name: user.name }
+    const selectedDatesArray = Object.keys(formData.selectedDates || {})
     
-    if (formData.dates.length === 0) {
+    if (selectedDatesArray.length === 0) {
       showToast('error', 'Please select at least one date')
       return
     }
@@ -180,61 +181,78 @@ function PublicDashboard({ user, onLogout }) {
     }
 
     // Validate all dates are not past
-    const invalidDates = formData.dates.filter(date => !isValidDate(date))
+    const invalidDates = selectedDatesArray.filter(date => !isValidDate(date))
     if (invalidDates.length > 0) {
       showToast('error', 'Cannot submit past dates. Please select today or future dates only.')
       return
     }
 
-    // Validate half day period if half day is selected
-    if (formData.leave_duration === 'half_day' && !formData.half_day_period) {
-      showToast('error', 'Please select 8 am - 12 pm or 12 pm to 4 pm for half day leave')
-      return
-    }
-
-    // Check for duplicate leave applications (same person, same dates, same leave type)
-    const duplicateLeaves = allLeaves.filter(leave => {
-      // Check if it's the same employee
-      if (leave.user_id?.toString() !== employee.id.toString() && leave.user_id !== employee.id) {
-        return false
+    // Group dates by leave type
+    const fullDayDates = []
+    const halfDayMorningDates = []
+    const halfDayEveningDates = []
+    
+    selectedDatesArray.forEach(date => {
+      const selection = formData.selectedDates[date]
+      if (selection.type === 'full_day') {
+        fullDayDates.push(date)
+      } else if (selection.period === 'morning') {
+        halfDayMorningDates.push(date)
+      } else {
+        halfDayEveningDates.push(date)
       }
-      
-      // Check if status is pending or approved (rejected leaves don't block)
-      if (leave.status !== 'pending' && leave.status !== 'approved') {
-        return false
-      }
-      
-      // Check if leave duration matches
-      if (leave.leave_duration !== formData.leave_duration) {
-        return false
-      }
-      
-      // If it's a half day, check if the period matches
-      if (formData.leave_duration === 'half_day') {
-        if (leave.half_day_period !== formData.half_day_period) {
-          return false
-        }
-      }
-      
-      // Check if any of the selected dates overlap with existing leave dates
-      if (leave.dates && Array.isArray(leave.dates)) {
-        const hasOverlap = formData.dates.some(date => leave.dates.includes(date))
-        return hasOverlap
-      }
-      
-      return false
     })
 
-    if (duplicateLeaves.length > 0) {
-      const duplicateDates = duplicateLeaves.flatMap(leave => leave.dates || [])
-        .filter((date, index, self) => formData.dates.includes(date) && self.indexOf(date) === index)
+    // Check for conflicting leave applications on same dates
+    const checkConflicts = (dates, leaveDuration, halfDayPeriod) => {
+      const conflicts = []
       
-      if (duplicateDates.length > 0) {
-        const dateStr = duplicateDates.length === 1 
-          ? formatDate(duplicateDates[0])
-          : `${duplicateDates.length} dates`
-        const errorMsg = `You have already applied for ${formData.leave_duration === 'half_day' ? 'half day' : 'full day'} leave on ${dateStr}. Please check your existing applications.`
-        showToast('error', errorMsg)
+      dates.forEach(date => {
+        const existingLeaves = allLeaves.filter(leave => {
+          if (leave.user_id?.toString() !== employee.id.toString() && leave.user_id !== employee.id) return false
+          if (leave.status !== 'pending' && leave.status !== 'approved') return false
+          if (!leave.dates || !Array.isArray(leave.dates)) return false
+          return leave.dates.includes(date)
+        })
+        
+        existingLeaves.forEach(leave => {
+          // If existing leave is full day, can't apply for anything on that date
+          if (!leave.leave_duration || leave.leave_duration === 'full_day') {
+            conflicts.push({ date, reason: 'full day already applied' })
+          }
+          // If trying to apply full day, can't if any leave exists on that date
+          else if (leaveDuration === 'full_day') {
+            conflicts.push({ date, reason: 'half day already applied' })
+          }
+          // If trying to apply same half day period, conflict
+          else if (leaveDuration === 'half_day' && leave.leave_duration === 'half_day' && leave.half_day_period === halfDayPeriod) {
+            conflicts.push({ date, reason: `${halfDayPeriod === 'morning' ? '1st half' : '2nd half'} already applied` })
+          }
+        })
+      })
+      
+      return conflicts
+    }
+
+    // Check conflicts for each type
+    if (fullDayDates.length > 0) {
+      const conflicts = checkConflicts(fullDayDates, 'full_day', null)
+      if (conflicts.length > 0) {
+        showToast('error', 'You have already applied for leave on one or more selected full day dates.')
+        return
+      }
+    }
+    if (halfDayMorningDates.length > 0) {
+      const conflicts = checkConflicts(halfDayMorningDates, 'half_day', 'morning')
+      if (conflicts.length > 0) {
+        showToast('error', 'You have already applied for leave on one or more selected 1st half dates.')
+        return
+      }
+    }
+    if (halfDayEveningDates.length > 0) {
+      const conflicts = checkConflicts(halfDayEveningDates, 'half_day', 'evening')
+      if (conflicts.length > 0) {
+        showToast('error', 'You have already applied for leave on one or more selected 2nd half dates.')
         return
       }
     }
@@ -243,26 +261,56 @@ function PublicDashboard({ user, onLogout }) {
     setMessage({ type: '', text: '' })
 
     try {
+      const requests = []
+      
+      // Submit full day leaves
+      if (fullDayDates.length > 0) {
+        requests.push(axios.post('/api/leaves', {
+          user_id: employee.id,
+          leave_type: 'casual',
+          dates: fullDayDates,
+          reason: formData.reason,
+          covering_officer: formData.covering_officer,
+          leave_duration: 'full_day',
+          half_day_period: null
+        }))
+      }
+      
+      // Submit half day morning leaves
+      if (halfDayMorningDates.length > 0) {
+        requests.push(axios.post('/api/leaves', {
+          user_id: employee.id,
+          leave_type: 'casual',
+          dates: halfDayMorningDates,
+          reason: formData.reason,
+          covering_officer: formData.covering_officer,
+          leave_duration: 'half_day',
+          half_day_period: 'morning'
+        }))
+      }
+      
+      // Submit half day evening leaves
+      if (halfDayEveningDates.length > 0) {
+        requests.push(axios.post('/api/leaves', {
+          user_id: employee.id,
+          leave_type: 'casual',
+          dates: halfDayEveningDates,
+          reason: formData.reason,
+          covering_officer: formData.covering_officer,
+          leave_duration: 'half_day',
+          half_day_period: 'evening'
+        }))
+      }
 
-      await axios.post('/api/leaves', {
-        user_id: employee.id,
-        leave_type: 'casual', // Default to casual (Annual Leave)
-        dates: formData.dates,
-        reason: formData.reason,
-        covering_officer: formData.covering_officer,
-        leave_duration: formData.leave_duration,
-        half_day_period: formData.leave_duration === 'half_day' ? formData.half_day_period : null
-      })
+      await Promise.all(requests)
       
       setMessage({ type: 'success', text: 'Leave application submitted successfully!' })
       showToast('success', 'Leave application submitted successfully!')
       setFormData({
         employee_name: user?.name || '',
-        dates: [],
+        selectedDates: {},
         reason: '',
-        covering_officer: '',
-        leave_duration: 'full_day',
-        half_day_period: ''
+        covering_officer: ''
       })
       
       // Refresh data
@@ -310,7 +358,7 @@ function PublicDashboard({ user, onLogout }) {
       emp.name.toLowerCase() === formData.employee_name.toLowerCase()
     )
 
-    formData.dates.forEach(date => {
+    Object.keys(formData.selectedDates || {}).forEach(date => {
       const conflictingLeaves = allLeaves.filter(leave => {
         // Skip leaves from the same employee
         if (currentEmployee && leave.user_id === currentEmployee.id) {
@@ -338,18 +386,36 @@ function PublicDashboard({ user, onLogout }) {
       return
     }
 
-    // Toggle date: if already selected, remove it; otherwise add it
-    if (formData.dates.includes(dateStr)) {
-      setFormData(prev => ({
-        ...prev,
-        dates: prev.dates.filter(d => d !== dateStr)
-      }))
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        dates: [...prev.dates, dateStr].sort()
-      }))
-    }
+    // Apply selected leave type or remove if already same type
+    setFormData(prev => {
+      const currentSelection = prev.selectedDates[dateStr]
+      const newSelectedDates = { ...prev.selectedDates }
+      
+      // Determine what type to apply based on selectedLeaveType
+      let newType = null
+      if (selectedLeaveType === 'full_day') {
+        newType = { type: 'full_day' }
+      } else if (selectedLeaveType === 'half_am') {
+        newType = { type: 'half_day', period: 'morning' }
+      } else {
+        newType = { type: 'half_day', period: 'evening' }
+      }
+      
+      // Check if current selection matches what we're trying to apply
+      const isSameType = currentSelection && 
+        currentSelection.type === newType.type && 
+        (currentSelection.type === 'full_day' || currentSelection.period === newType.period)
+      
+      if (isSameType) {
+        // Remove if same type
+        delete newSelectedDates[dateStr]
+      } else {
+        // Apply new type
+        newSelectedDates[dateStr] = newType
+      }
+      
+      return { ...prev, selectedDates: newSelectedDates }
+    })
     
     setMessage({ type: '', text: '' }) // Clear any previous errors
   }
@@ -400,10 +466,25 @@ function PublicDashboard({ user, onLogout }) {
   }
 
   const removeDate = (dateToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      dates: prev.dates.filter(d => d !== dateToRemove)
-    }))
+    setFormData(prev => {
+      const newSelectedDates = { ...prev.selectedDates }
+      delete newSelectedDates[dateToRemove]
+      return { ...prev, selectedDates: newSelectedDates }
+    })
+  }
+
+  // Get sorted array of selected dates
+  const getSelectedDatesArray = () => {
+    return Object.keys(formData.selectedDates || {}).sort()
+  }
+
+  // Get leave type label for a date
+  const getDateTypeLabel = (dateStr) => {
+    const selection = formData.selectedDates[dateStr]
+    if (!selection) return ''
+    if (selection.type === 'full_day') return ''
+    if (selection.period === 'morning') return '1st Half'
+    return '2nd Half'
   }
 
   const formatDate = (dateStr) => {
@@ -429,7 +510,7 @@ function PublicDashboard({ user, onLogout }) {
       return 'Full Day'
     }
     if (leave.leave_duration === 'half_day') {
-      return 'Half Day'
+      return leave.half_day_period === 'morning' ? '1st Half' : '2nd Half'
     }
     return leave.leave_duration
   }
@@ -451,8 +532,65 @@ function PublicDashboard({ user, onLogout }) {
     return selectedDate >= today
   }
 
+  // Group leaves submitted together (within 10 seconds by same user)
+  const groupLeavesBySubmission = (leaves) => {
+    const grouped = []
+    const processed = new Set()
+    
+    leaves.forEach(leave => {
+      if (processed.has(leave.id)) return
+      
+      const leaveTime = new Date(leave.applied_at).getTime()
+      
+      // Find all leaves from same user within 10 seconds
+      const relatedLeaves = leaves.filter(l => {
+        if (processed.has(l.id)) return false
+        if (l.user_id !== leave.user_id && l.employee_name !== leave.employee_name) return false
+        const timeDiff = Math.abs(new Date(l.applied_at).getTime() - leaveTime)
+        return timeDiff < 10000 // 10 seconds
+      })
+      
+      // Mark all as processed
+      relatedLeaves.forEach(l => processed.add(l.id))
+      
+      // Combine into one grouped leave
+      const allDates = []
+      const leaveTypes = []
+      
+      relatedLeaves.forEach(l => {
+        if (l.dates && l.dates.length > 0) {
+          l.dates.forEach(date => {
+            const typeLabel = !l.leave_duration || l.leave_duration === 'full_day' 
+              ? '' 
+              : (l.half_day_period === 'morning' ? '1st Half' : '2nd Half')
+            allDates.push({ date, type: typeLabel, leave: l })
+          })
+        }
+        leaveTypes.push(formatLeaveDuration(l))
+      })
+      
+      // Sort dates
+      allDates.sort((a, b) => new Date(a.date) - new Date(b.date))
+      
+      grouped.push({
+        id: leave.id,
+        employee_name: leave.employee_name,
+        user_id: leave.user_id,
+        applied_at: leave.applied_at,
+        status: leave.status,
+        reason: leave.reason,
+        covering_officer: leave.covering_officer,
+        allDates: allDates,
+        leaveTypes: [...new Set(leaveTypes)],
+        originalLeaves: relatedLeaves
+      })
+    })
+    
+    return grouped
+  }
+
   // Show both approved and pending leaves, filtered and sorted
-  const allLeavesList = allLeaves
+  const filteredLeaves = (allLeaves || [])
     .filter(l => {
       // Filter by status
       if (l.status !== 'approved' && l.status !== 'pending') return false
@@ -472,6 +610,8 @@ function PublicDashboard({ user, onLogout }) {
       const dateB = new Date(b.applied_at)
       return dateB - dateA
     })
+  
+  const allLeavesList = groupLeavesBySubmission(filteredLeaves)
 
   if (loading) {
     return (
@@ -513,14 +653,14 @@ function PublicDashboard({ user, onLogout }) {
 
       <main className="public-main">
         {/* Today's Leaves - Prominent Section */}
-        {todayLeaves.length > 0 && (
+        {(todayLeaves || []).length > 0 && (
           <div className="today-leaves-section">
             <div className="today-header">
               <Clock size={20} />
               <h2>On Leave Today ({formatDate(formatDateString(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()))})</h2>
             </div>
             <div className="today-list">
-              {todayLeaves.map(leave => (
+              {(todayLeaves || []).map(leave => (
                 <div key={leave.id} className="today-item">
                   <span className="today-name">{leave.employee_name}</span>
                   <span className={`status-badge ${leave.status}`}>{leave.status}</span>
@@ -626,59 +766,6 @@ function PublicDashboard({ user, onLogout }) {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Leave Type</label>
-                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="leave_duration"
-                        value="full_day"
-                        checked={formData.leave_duration === 'full_day'}
-                        onChange={(e) => setFormData(prev => ({ ...prev, leave_duration: e.target.value, half_day_period: '' }))}
-                      />
-                      <span>Full Day</span>
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="leave_duration"
-                        value="half_day"
-                        checked={formData.leave_duration === 'half_day'}
-                        onChange={(e) => setFormData(prev => ({ ...prev, leave_duration: e.target.value }))}
-                      />
-                      <span>Half Day</span>
-                    </label>
-                  </div>
-                  {formData.leave_duration === 'half_day' && (
-                    <div style={{ marginBottom: '1rem' }}>
-                      <label className="form-label">Half Day Period</label>
-                      <div style={{ display: 'flex', gap: '1rem' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                          <input
-                            type="radio"
-                            name="half_day_period"
-                            value="morning"
-                            checked={formData.half_day_period === 'morning'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, half_day_period: e.target.value }))}
-                          />
-                          <span>8 am - 12 pm</span>
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                          <input
-                            type="radio"
-                            name="half_day_period"
-                            value="evening"
-                            checked={formData.half_day_period === 'evening'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, half_day_period: e.target.value }))}
-                          />
-                          <span>12 pm - 4 pm</span>
-                        </label>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="form-group">
                   <label className="form-label">Select Day/Days</label>
                   <div className="custom-calendar-wrapper" ref={calendarRef}>
                     <button
@@ -688,8 +775,8 @@ function PublicDashboard({ user, onLogout }) {
                       style={{ textAlign: 'left', cursor: 'pointer' }}
                     >
                       <CalendarDays size={18} style={{ marginRight: '0.5rem', display: 'inline-block', verticalAlign: 'middle' }} />
-                      {formData.dates.length > 0 
-                        ? `${formData.dates.length} date${formData.dates.length > 1 ? 's' : ''} selected`
+                      {getSelectedDatesArray().length > 0 
+                        ? `${getSelectedDatesArray().length} date${getSelectedDatesArray().length > 1 ? 's' : ''} selected`
                         : 'Click to select dates'
                       }
                     </button>
@@ -722,23 +809,101 @@ function PublicDashboard({ user, onLogout }) {
                             <div key={day} className="calendar-weekday">{day}</div>
                           ))}
                         </div>
+                        {/* Leave Type Selector */}
+                        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', textAlign: 'center', marginBottom: '0.5rem' }}>
+                          Select leave type, then tap dates:
+                        </p>
+                        <div className="leave-type-selector" style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedLeaveType('full_day')}
+                            className={`leave-type-btn ${selectedLeaveType === 'full_day' ? 'active' : ''}`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              padding: '0.4rem 0.75rem',
+                              borderRadius: '20px',
+                              border: selectedLeaveType === 'full_day' ? '2px solid var(--color-primary)' : '1px solid #ddd',
+                              background: selectedLeaveType === 'full_day' ? '#e8f5f0' : 'white',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                              fontWeight: selectedLeaveType === 'full_day' ? '600' : '400'
+                            }}
+                          >
+                            <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: 'var(--color-primary)', border: '1px solid var(--color-primary)' }}></span>
+                            <span>Full Day</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedLeaveType('half_am')}
+                            className={`leave-type-btn ${selectedLeaveType === 'half_am' ? 'active' : ''}`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              padding: '0.4rem 0.75rem',
+                              borderRadius: '20px',
+                              border: selectedLeaveType === 'half_am' ? '2px solid var(--color-primary)' : '1px solid #ddd',
+                              background: selectedLeaveType === 'half_am' ? '#e8f5f0' : 'white',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                              fontWeight: selectedLeaveType === 'half_am' ? '600' : '400'
+                            }}
+                          >
+                            <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: 'linear-gradient(to right, var(--color-primary) 50%, #f0f0f0 50%)', border: '1px solid var(--color-primary)' }}></span>
+                            <span>1st Half</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedLeaveType('half_pm')}
+                            className={`leave-type-btn ${selectedLeaveType === 'half_pm' ? 'active' : ''}`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              padding: '0.4rem 0.75rem',
+                              borderRadius: '20px',
+                              border: selectedLeaveType === 'half_pm' ? '2px solid var(--color-primary)' : '1px solid #ddd',
+                              background: selectedLeaveType === 'half_pm' ? '#e8f5f0' : 'white',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                              fontWeight: selectedLeaveType === 'half_pm' ? '600' : '400'
+                            }}
+                          >
+                            <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: 'linear-gradient(to right, #f0f0f0 50%, var(--color-primary) 50%)', border: '1px solid var(--color-primary)' }}></span>
+                            <span>2nd Half</span>
+                          </button>
+                        </div>
                         <div className="calendar-days">
                           {getCalendarDays().map((dayData, idx) => {
                             if (!dayData) {
                               return <div key={`empty-${idx}`} className="calendar-day empty"></div>
                             }
                             
-                            const isSelected = formData.dates.includes(dayData.dateStr)
+                            const selection = formData.selectedDates[dayData.dateStr]
                             const isPast = !isValidDate(dayData.dateStr)
                             const today = new Date()
                             const todayStr = formatDateString(today.getFullYear(), today.getMonth(), today.getDate())
                             const isToday = dayData.dateStr === todayStr
                             
+                            // Determine class based on selection type
+                            let selectionClass = ''
+                            if (selection) {
+                              if (selection.type === 'full_day') {
+                                selectionClass = 'selected-full'
+                              } else if (selection.period === 'morning') {
+                                selectionClass = 'selected-half-am'
+                              } else {
+                                selectionClass = 'selected-half-pm'
+                              }
+                            }
+                            
                             return (
                               <button
                                 key={dayData.dateStr}
                                 type="button"
-                                className={`calendar-day ${isSelected ? 'selected' : ''} ${isPast ? 'past' : ''} ${isToday ? 'today' : ''}`}
+                                className={`calendar-day ${selectionClass} ${isPast ? 'past' : ''} ${isToday ? 'today' : ''}`}
                                 onClick={() => !isPast && toggleDate(dayData.dateStr)}
                                 disabled={isPast}
                               >
@@ -761,22 +926,26 @@ function PublicDashboard({ user, onLogout }) {
                     )}
                   </div>
                   
-                  {formData.dates.length > 0 && (
+                  {getSelectedDatesArray().length > 0 && (
                     <div className="selected-dates-wrapper">
                       <div className="selected-dates">
-                        {formData.dates.slice(0, 5).map(date => (
-                          <div key={date} className="date-chip">
-                            <span>{formatDate(date)}</span>
-                            <button 
-                              type="button" 
-                              className="date-chip-remove"
-                              onClick={() => removeDate(date)}
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ))}
-                        {formData.dates.length > 5 && (
+                        {getSelectedDatesArray().slice(0, 5).map(date => {
+                          const typeLabel = getDateTypeLabel(date)
+                          return (
+                            <div key={date} className="date-chip">
+                              <span>{formatDate(date)}</span>
+                              {typeLabel && <span className="chip-type">{typeLabel}</span>}
+                              <button 
+                                type="button" 
+                                className="date-chip-remove"
+                                onClick={() => removeDate(date)}
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          )
+                        })}
+                        {getSelectedDatesArray().length > 5 && (
                           <div 
                             className={`dates-more-tooltip-wrapper ${showTooltip ? 'tooltip-active' : ''}`}
                             onClick={(e) => {
@@ -787,14 +956,19 @@ function PublicDashboard({ user, onLogout }) {
                             onMouseLeave={() => setShowTooltip(false)}
                           >
                             <span className="date-chip more-dates">
-                              +{formData.dates.length - 5} more
+                              +{getSelectedDatesArray().length - 5} more
                             </span>
                             <div className="dates-tooltip">
-                              <strong>All selected dates ({formData.dates.length}):</strong>
+                              <strong>All selected dates ({getSelectedDatesArray().length}):</strong>
                               <div className="tooltip-dates-list">
-                                {formData.dates.map(date => (
-                                  <span key={date} className="tooltip-date">{formatDate(date)}</span>
-                                ))}
+                                {getSelectedDatesArray().map(date => {
+                                  const typeLabel = getDateTypeLabel(date)
+                                  return (
+                                    <span key={date} className="tooltip-date">
+                                      {formatDate(date)}{typeLabel ? ` (${typeLabel})` : ''}
+                                    </span>
+                                  )
+                                })}
                               </div>
                             </div>
                           </div>
@@ -803,9 +977,9 @@ function PublicDashboard({ user, onLogout }) {
                     </div>
                   )}
                   
-                  {formData.dates.length > 0 && (
+                  {getSelectedDatesArray().length > 0 && (
                     <p className="dates-count">
-                      {formData.dates.length} day{formData.dates.length > 1 ? 's' : ''} selected
+                      {getSelectedDatesArray().length} day{getSelectedDatesArray().length > 1 ? 's' : ''} selected
                     </p>
                   )}
 
@@ -895,7 +1069,6 @@ function PublicDashboard({ user, onLogout }) {
                       <tr>
                         <th>Name</th>
                         <th>Dates</th>
-                        <th>Leave Type</th>
                         <th>Status</th>
                       </tr>
                     </thead>
@@ -907,18 +1080,15 @@ function PublicDashboard({ user, onLogout }) {
                           </td>
                           <td>
                             <div className="dates-list">
-                              {leave.dates && leave.dates.slice(0, 2).map((date, idx) => (
+                              {leave.allDates && leave.allDates.slice(0, 3).map((item, idx) => (
                                 <span key={idx} className="date-tag">
-                                  {formatDate(date)}
+                                  {formatDate(item.date)}{item.type ? ` (${item.type})` : ''}
                                 </span>
                               ))}
-                              {leave.dates && leave.dates.length > 2 && (
-                                <span className="date-tag more">+{leave.dates.length - 2}</span>
+                              {leave.allDates && leave.allDates.length > 3 && (
+                                <span className="date-tag more">+{leave.allDates.length - 3}</span>
                               )}
                             </div>
-                          </td>
-                          <td>
-                            <span className="leave-type-badge">{formatLeaveDuration(leave)}</span>
                           </td>
                           <td>
                             <span className={`status-badge ${leave.status}`}>
@@ -937,8 +1107,8 @@ function PublicDashboard({ user, onLogout }) {
         )}
 
         {activeTab === 'history' && (
-          <div className="my-history-section">
-            <div className="card">
+          <div className="public-grid" style={{ display: 'block' }}>
+            <div className="card" style={{ width: '100%' }}>
               <div className="card-header">
                 <h3>
                   <History size={18} />
@@ -947,7 +1117,7 @@ function PublicDashboard({ user, onLogout }) {
               </div>
               <div className="card-body">
                 {/* History Calendar */}
-                <div className="history-calendar">
+                <div className="history-calendar" style={{ width: '100%', boxSizing: 'border-box' }}>
                   <div className="history-calendar-header">
                     <button 
                       type="button" 
@@ -976,14 +1146,18 @@ function PublicDashboard({ user, onLogout }) {
                     </button>
                   </div>
                   
-                  <div className="history-legend">
-                    <div className="legend-item">
-                      <span className="legend-color full-day"></span>
+                  <div className="history-legend" style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem' }}>
+                      <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: 'var(--color-primary)', border: '1px solid var(--color-primary)' }}></span>
                       <span>Full Day</span>
                     </div>
-                    <div className="legend-item">
-                      <span className="legend-color half-day"></span>
-                      <span>Half Day</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem' }}>
+                      <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: 'linear-gradient(to right, var(--color-primary) 50%, #f0f0f0 50%)', border: '1px solid var(--color-primary)' }}></span>
+                      <span>1st Half</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem' }}>
+                      <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: 'linear-gradient(to right, #f0f0f0 50%, var(--color-primary) 50%)', border: '1px solid var(--color-primary)' }}></span>
+                      <span>2nd Half</span>
                     </div>
                   </div>
 
@@ -1012,10 +1186,10 @@ function PublicDashboard({ user, onLogout }) {
                       for (let day = 1; day <= daysInMonth; day++) {
                         const dateStr = formatDateString(year, month, day)
                         
-                        // Find approved leave for this date (only show approved)
-                        const leaveForDate = myLeaves.find(leave => 
+                        // Find leave for this date (show both approved and pending)
+                        const leaveForDate = (myLeaves || []).find(leave => 
                           leave.dates && leave.dates.includes(dateStr) && 
-                          leave.status === 'approved'
+                          (leave.status === 'approved' || leave.status === 'pending')
                         )
                         
                         let dayClass = 'calendar-day history-day'
@@ -1023,10 +1197,13 @@ function PublicDashboard({ user, onLogout }) {
                         
                         if (leaveForDate) {
                           const isHalfDay = leaveForDate.leave_duration === 'half_day'
-                          dayClass += isHalfDay ? ' half-day-approved' : ' full-day-approved'
-                          tooltip = isHalfDay 
-                            ? `Half Day (${leaveForDate.half_day_period === 'morning' ? '8am-12pm' : '12pm-4pm'})`
-                            : 'Full Day'
+                          if (isHalfDay) {
+                            dayClass += leaveForDate.half_day_period === 'morning' ? ' history-half-1st' : ' history-half-2nd'
+                            tooltip = leaveForDate.half_day_period === 'morning' ? '1st Half' : '2nd Half'
+                          } else {
+                            dayClass += ' history-full'
+                            tooltip = 'Full Day'
+                          }
                         }
                         
                         days.push(
@@ -1050,7 +1227,7 @@ function PublicDashboard({ user, onLogout }) {
                   <h4 style={{ marginBottom: '1rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
                     Recent Leave Applications
                   </h4>
-                  {myLeaves.length === 0 ? (
+                  {(myLeaves || []).length === 0 ? (
                     <div className="empty-state">
                       <div className="empty-state-icon">
                         <CalendarDays size={28} />
@@ -1063,27 +1240,27 @@ function PublicDashboard({ user, onLogout }) {
                         <thead>
                           <tr>
                             <th>Dates</th>
-                            <th>Leave Type</th>
+                            <th>Applied</th>
                             <th>Status</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {myLeaves.map(leave => (
+                          {groupLeavesBySubmission((myLeaves || []).sort((a, b) => new Date(b.applied_at) - new Date(a.applied_at))).map(leave => (
                             <tr key={leave.id}>
                               <td>
                                 <div className="dates-list">
-                                  {leave.dates && leave.dates.slice(0, 2).map((date, idx) => (
+                                  {leave.allDates && leave.allDates.slice(0, 3).map((item, idx) => (
                                     <span key={idx} className="date-tag">
-                                      {formatDate(date)}
+                                      {formatDate(item.date)}{item.type ? ` (${item.type})` : ''}
                                     </span>
                                   ))}
-                                  {leave.dates && leave.dates.length > 2 && (
-                                    <span className="date-tag more">+{leave.dates.length - 2}</span>
+                                  {leave.allDates && leave.allDates.length > 3 && (
+                                    <span className="date-tag more">+{leave.allDates.length - 3}</span>
                                   )}
                                 </div>
                               </td>
-                              <td>
-                                <span className="leave-type-badge">{formatLeaveDuration(leave)}</span>
+                              <td style={{ whiteSpace: 'nowrap', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                                {leave.applied_at ? new Date(leave.applied_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '-'}
                               </td>
                               <td>
                                 <span className={`status-badge ${leave.status}`}>
