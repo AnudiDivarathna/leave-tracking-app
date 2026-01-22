@@ -3167,9 +3167,9 @@ input[type="radio"]:hover {
 
   /* Tables - make scrollable on mobile */
   .table-container {
-    overflow-x: visible;
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    overflow-y: visible;
+    overflow-y: auto;
     position: relative;
     width: 100%;
     margin: 0;

@@ -464,12 +464,57 @@ async function getEmployeeStats() {
   }
 }
 
+async function deleteLeave(id) {
+  const database = await getDatabase();
+  const { ObjectId } = require('mongodb');
+
+  if (database) {
+    // Convert string ID to ObjectId - handle both string and ObjectId inputs
+    let queryId;
+    try {
+      // If id is already an ObjectId, use it directly
+      if (id instanceof ObjectId) {
+        queryId = id;
+      } else if (typeof id === 'string' && ObjectId.isValid(id)) {
+        queryId = new ObjectId(id);
+      } else {
+        queryId = id;
+      }
+    } catch (e) {
+      console.error('ObjectId conversion error:', e);
+      queryId = id;
+    }
+
+    console.log('Deleting leave:', { originalId: id, queryId: queryId.toString() });
+
+    const result = await database.collection('leaves').deleteOne({ _id: queryId });
+
+    console.log('Delete result:', { deletedCount: result.deletedCount });
+
+    if (result.deletedCount === 0) {
+      return null;
+    }
+
+    return { id: queryId.toString(), deleted: true };
+  }
+
+  // Fallback to memory
+  const memDb = initMemoryDB();
+  const leaveIndex = memDb.leaves.findIndex(l => l.id.toString() === id.toString());
+  if (leaveIndex === -1) return null;
+  
+  memDb.leaves.splice(leaveIndex, 1);
+  return { id: id.toString(), deleted: true };
+}
+
 module.exports = {
+  getDatabase,
   getEmployees,
   getAllLeaves,
   getLeaveById,
   createLeave,
   updateLeaveStatus,
+  deleteLeave,
   getStats,
   getEmployeeStats
 };

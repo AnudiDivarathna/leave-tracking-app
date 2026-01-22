@@ -508,6 +508,72 @@ app.patch('/api/leaves/:id/status', async (req, res) => {
   }
 });
 
+// ============== DELETE SINGLE LEAVE ROUTE ==============
+
+// Delete a specific leave by ID (takes ID from body)
+app.delete('/api/leaves-delete', async (req, res) => {
+  const { id } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: 'Leave ID is required' });
+  }
+
+  try {
+    let queryId;
+    if (ObjectId.isValid(id)) {
+      queryId = new ObjectId(id);
+    } else {
+      queryId = id;
+    }
+
+    console.log('Deleting leave:', { id, queryId: queryId.toString() });
+
+    const result = await db.collection('leaves').deleteOne({ _id: queryId });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Leave not found' });
+    }
+
+    console.log('Leave deleted successfully:', { id, deletedCount: result.deletedCount });
+    res.json({ message: 'Leave deleted successfully', id: id });
+  } catch (err) {
+    console.error('Error deleting leave:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// Also accept POST for flexibility
+app.post('/api/leaves-delete', async (req, res) => {
+  const { id } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: 'Leave ID is required' });
+  }
+
+  try {
+    let queryId;
+    if (ObjectId.isValid(id)) {
+      queryId = new ObjectId(id);
+    } else {
+      queryId = id;
+    }
+
+    console.log('Deleting leave (POST):', { id, queryId: queryId.toString() });
+
+    const result = await db.collection('leaves').deleteOne({ _id: queryId });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Leave not found' });
+    }
+
+    console.log('Leave deleted successfully:', { id, deletedCount: result.deletedCount });
+    res.json({ message: 'Leave deleted successfully', id: id });
+  } catch (err) {
+    console.error('Error deleting leave:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
 // ============== CLEAR LEAVES ROUTE ==============
 
 // Clear all leaves data (keeps employees)

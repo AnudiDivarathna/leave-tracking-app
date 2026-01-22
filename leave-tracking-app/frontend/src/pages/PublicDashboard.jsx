@@ -14,7 +14,8 @@ import {
   History,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  Trash2
 } from 'lucide-react'
 
 function PublicDashboard({ user, onLogout }) {
@@ -26,6 +27,7 @@ function PublicDashboard({ user, onLogout }) {
   const [message, setMessage] = useState({ type: '', text: '' })
   const [toast, setToast] = useState({ show: false, type: '', text: '' })
   const [loading, setLoading] = useState(true)
+  const [deletingLeaveId, setDeletingLeaveId] = useState(null)
   const [activeTab, setActiveTab] = useState('apply') // 'apply' or 'history'
   const [historyMonth, setHistoryMonth] = useState(new Date())
 
@@ -508,6 +510,47 @@ function PublicDashboard({ user, onLogout }) {
       return leave.half_day_period === 'morning' ? '8am-12pm' : '12pm-4pm'
     }
     return leave.leave_duration
+  }
+
+  // Handle leave deletion
+  const handleDeleteLeave = async (leave) => {
+    // For grouped leaves, delete all related leaves
+    const leaveIds = leave.originalLeaves ? leave.originalLeaves.map(l => l.id) : [leave.id]
+    
+    // Confirm deletion
+    const confirmMessage = leaveIds.length > 1 
+      ? `Are you sure you want to delete this leave application with ${leaveIds.length} dates?`
+      : 'Are you sure you want to delete this leave application?'
+    
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    setDeletingLeaveId(leave.id)
+
+    try {
+      // Delete all related leaves from backend
+      await Promise.all(leaveIds.map(id => 
+        axios.delete('/api/leaves-delete', { data: { id } })
+      ))
+      
+      // Remove from myLeaves state
+      setMyLeaves(prev => prev.filter(l => !leaveIds.includes(l.id)))
+      
+      // Also update allLeaves (used in "All Leaves" grid)
+      setAllLeaves(prev => prev.filter(l => !leaveIds.includes(l.id)))
+      
+      // Update todayLeaves if any deleted leave was for today
+      setTodayLeaves(prev => prev.filter(l => !leaveIds.includes(l.id)))
+      
+      showToast('success', 'Leave deleted successfully')
+    } catch (err) {
+      console.error('Error deleting leave:', err)
+      const errorMsg = err.response?.data?.error || 'Failed to delete leave application'
+      showToast('error', errorMsg)
+    } finally {
+      setDeletingLeaveId(null)
+    }
   }
 
   // Render status badge with icon
@@ -1261,6 +1304,7 @@ function PublicDashboard({ user, onLogout }) {
                             <th>Dates</th>
                             <th>Applied</th>
                             <th>State</th>
+                            <th></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1283,6 +1327,28 @@ function PublicDashboard({ user, onLogout }) {
                               </td>
                               <td>
                                 {renderStatusBadge(leave.status)}
+                              </td>
+                              <td>
+                                <button
+                                  className="btn btn-danger btn-small"
+                                  onClick={() => handleDeleteLeave(leave)}
+                                  disabled={deletingLeaveId === leave.id}
+                                  title="Delete leave"
+                                  style={{ 
+                                    padding: '0.4rem',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    minWidth: '32px',
+                                    minHeight: '32px'
+                                  }}
+                                >
+                                  {deletingLeaveId === leave.id ? (
+                                    <Clock size={16} className="spinning" />
+                                  ) : (
+                                    <Trash2 size={16} />
+                                  )}
+                                </button>
                               </td>
                             </tr>
                           ))}
