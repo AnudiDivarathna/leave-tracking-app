@@ -148,6 +148,57 @@ function AdminDashboard() {
       .sort((a, b) => new Date(b.applied_at) - new Date(a.applied_at))
   }
 
+  // Get employee leaves flattened by date (each date is a separate row)
+  const getEmployeeLeaveDates = (userId) => {
+    const leaves = filteredLeaves.filter(leave => leave.user_id === userId)
+    const datewise = []
+    
+    leaves.forEach(leave => {
+      if (leave.dates && Array.isArray(leave.dates)) {
+        leave.dates.forEach(date => {
+          datewise.push({
+            id: `${leave.id}-${date}`,
+            date: date,
+            status: leave.status,
+            leave_duration: leave.leave_duration,
+            half_day_period: leave.half_day_period,
+            covering_officer: leave.covering_officer,
+            applied_at: leave.applied_at
+          })
+        })
+      }
+    })
+    
+    // Sort by date descending (newest first)
+    return datewise.sort((a, b) => new Date(b.date) - new Date(a.date))
+  }
+
+  // Get total date count for an employee (not record count)
+  const getEmployeeTotalDateCount = (userId) => {
+    const leaves = (Array.isArray(allLeaves) ? allLeaves : []).filter(leave => leave.user_id === userId)
+    let totalDates = 0
+    leaves.forEach(leave => {
+      if (leave.dates && Array.isArray(leave.dates)) {
+        totalDates += leave.dates.length
+      }
+    })
+    return totalDates
+  }
+
+  // Get pending date count for an employee
+  const getEmployeePendingDateCount = (userId) => {
+    const leaves = (Array.isArray(allLeaves) ? allLeaves : []).filter(leave => 
+      leave.user_id === userId && leave.status === 'pending'
+    )
+    let totalDates = 0
+    leaves.forEach(leave => {
+      if (leave.dates && Array.isArray(leave.dates)) {
+        totalDates += leave.dates.length
+      }
+    })
+    return totalDates
+  }
+
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-GB', {
       day: '2-digit',
@@ -494,125 +545,6 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* Recently Applied Leaves */}
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <div className="card-header">
-            <h3>
-              <CalendarDays size={18} />
-              Recently Applied Leaves
-            </h3>
-          </div>
-          <div className="filters-container" style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)' }}>
-            <div className="filters-row">
-              <div className="filter-group-compact">
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
-                  <input
-                    type="date"
-                    className="form-input-compact"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    title="Filter by date"
-                    style={{ color: dateFilter ? 'var(--color-text)' : 'transparent', width: '100%' }}
-                  />
-                  {!dateFilter && (
-                    <span style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      fontSize: '0.85rem',
-                      color: 'var(--color-text-muted)',
-                      pointerEvents: 'none',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      Filter by date
-                    </span>
-                  )}
-                </div>
-                {dateFilter && (
-                  <button
-                    className="btn-icon-compact"
-                    onClick={() => setDateFilter('')}
-                    title="Clear date filter"
-                  >
-                    <XIcon size={14} />
-                  </button>
-                )}
-              </div>
-              <div className="filter-group-compact">
-                <Filter size={16} style={{ color: 'var(--color-text-muted)' }} />
-                <input
-                  type="text"
-                  className="form-input-compact"
-                  value={recentNameFilter}
-                  onChange={(e) => setRecentNameFilter(e.target.value)}
-                  placeholder="Filter by name"
-                  title="Filter by name"
-                  style={{ flex: 1 }}
-                />
-                {recentNameFilter && (
-                  <button
-                    className="btn-icon-compact"
-                    onClick={() => setRecentNameFilter('')}
-                    title="Clear name filter"
-                  >
-                    <XIcon size={14} />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="card-body" style={{ padding: 0 }}>
-            {recentLeaves.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state-icon">
-                  <CalendarDays size={28} />
-                </div>
-                <p>{dateFilter ? 'No leaves found for this date' : 'No leave applications yet'}</p>
-              </div>
-            ) : (
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Selected Dates</th>
-                      <th>Covering</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groupedRecentLeaves.map(leave => (
-                      <tr key={leave.id}>
-                        <td>
-                          <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-                            {getStatusIcon(leave.status)}
-                            <span className="employee-cell-name">{leave.employee_name}</span>
-                          </span>
-                        </td>
-                        <td>
-                          <div className="dates-list">
-                            {leave.allDates && leave.allDates.slice(0, 3).map((item, idx) => (
-                              <span key={idx} className="date-tag">
-                                {formatDate(item.date)}{item.type ? ` (${item.type})` : ''}
-                              </span>
-                            ))}
-                            {leave.allDates && leave.allDates.length > 3 && (
-                              <span className="date-tag more">+{leave.allDates.length - 3}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <span className="employee-cell-name" style={{ fontSize: '0.8rem' }}>{leave.covering_officer || '-'}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Pending Approvals Section */}
         <div className="card pending-section" style={{ marginBottom: '1.5rem', border: '2px solid var(--color-warning)' }}>
           <div className="card-header" style={{ background: 'linear-gradient(135deg, #fff5e6 0%, #fff 100%)' }}>
@@ -778,6 +710,125 @@ function AdminDashboard() {
           </div>
         </div>
 
+        {/* Recently Applied Leaves */}
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <div className="card-header">
+            <h3>
+              <CalendarDays size={18} />
+              Recently Applied Leaves
+            </h3>
+          </div>
+          <div className="filters-container" style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)' }}>
+            <div className="filters-row">
+              <div className="filter-group-compact">
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
+                  <input
+                    type="date"
+                    className="form-input-compact"
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    title="Filter by date"
+                    style={{ color: dateFilter ? 'var(--color-text)' : 'transparent', width: '100%' }}
+                  />
+                  {!dateFilter && (
+                    <span style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '0.85rem',
+                      color: 'var(--color-text-muted)',
+                      pointerEvents: 'none',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      Filter by date
+                    </span>
+                  )}
+                </div>
+                {dateFilter && (
+                  <button
+                    className="btn-icon-compact"
+                    onClick={() => setDateFilter('')}
+                    title="Clear date filter"
+                  >
+                    <XIcon size={14} />
+                  </button>
+                )}
+              </div>
+              <div className="filter-group-compact">
+                <Filter size={16} style={{ color: 'var(--color-text-muted)' }} />
+                <input
+                  type="text"
+                  className="form-input-compact"
+                  value={recentNameFilter}
+                  onChange={(e) => setRecentNameFilter(e.target.value)}
+                  placeholder="Filter by name"
+                  title="Filter by name"
+                  style={{ flex: 1 }}
+                />
+                {recentNameFilter && (
+                  <button
+                    className="btn-icon-compact"
+                    onClick={() => setRecentNameFilter('')}
+                    title="Clear name filter"
+                  >
+                    <XIcon size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="card-body" style={{ padding: 0 }}>
+            {recentLeaves.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">
+                  <CalendarDays size={28} />
+                </div>
+                <p>{dateFilter ? 'No leaves found for this date' : 'No leave applications yet'}</p>
+              </div>
+            ) : (
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Selected Dates</th>
+                      <th>Covering</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupedRecentLeaves.map(leave => (
+                      <tr key={leave.id}>
+                        <td>
+                          <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            {getStatusIcon(leave.status)}
+                            <span className="employee-cell-name">{leave.employee_name}</span>
+                          </span>
+                        </td>
+                        <td>
+                          <div className="dates-list">
+                            {leave.allDates && leave.allDates.slice(0, 3).map((item, idx) => (
+                              <span key={idx} className="date-tag">
+                                {formatDate(item.date)}{item.type ? ` (${item.type})` : ''}
+                              </span>
+                            ))}
+                            {leave.allDates && leave.allDates.length > 3 && (
+                              <span className="date-tag more">+{leave.allDates.length - 3}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <span className="employee-cell-name" style={{ fontSize: '0.8rem' }}>{leave.covering_officer || '-'}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Compact Filters */}
         <div className="filter-bar-compact" style={{ justifyContent: 'center' }}>
           <div className="filter-group-compact" style={{ width: '250px' }}>
@@ -832,48 +883,51 @@ function AdminDashboard() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div className="leave-count">
-                      <span>{employee.total_leaves || 0}</span>
-                      <small>leaves</small>
+                      <span>{getEmployeeTotalDateCount(employee.id)}</span>
+                      <small>{getEmployeeTotalDateCount(employee.id) === 1 ? 'day' : 'days'}</small>
                     </div>
-                    {employee.pending_leaves > 0 && (
-                      <span className="status-badge pending" style={{ fontSize: '0.75rem' }}>
-                        {employee.pending_leaves} pending
-                      </span>
-                    )}
                     {expandedEmployee === employee.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                   </div>
                 </div>
 
                 {expandedEmployee === employee.id && (
                   <div className="employee-card-details">
-                    {/* Employee's leaves list */}
+                    {/* Employee's leaves list - date wise */}
                     <div style={{ marginTop: '1rem' }}>
                       <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--color-text-muted)' }}>Leave History</h4>
-                      {getEmployeeLeaves(employee.id).length === 0 ? (
+                      {getEmployeeLeaveDates(employee.id).length === 0 ? (
                         <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>No leaves applied</p>
                       ) : (
                         <div className="table-container">
                           <table className="table" style={{ fontSize: '0.85rem' }}>
                             <thead>
                               <tr>
-                                <th>Applied On</th>
-                                <th>Dates</th>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Status</th>
                                 <th>Covering</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {getEmployeeLeaves(employee.id).slice(0, 5).map(leave => (
-                                <tr key={leave.id}>
+                              {getEmployeeLeaveDates(employee.id).slice(0, 10).map(item => (
+                                <tr key={item.id}>
                                   <td>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-                                      {getStatusIcon(leave.status)}
-                                      {formatDate(leave.applied_at)}
+                                    <span className="date-tag">
+                                      {formatDate(item.date)}
                                     </span>
                                   </td>
-                                  <td>
-                                    {renderDatesWithTooltip(leave.dates, 2, `employee-${employee.id}-${leave.id}`, leave)}
+                                  <td style={{ fontSize: '0.8rem' }}>
+                                    {!item.leave_duration || item.leave_duration === 'full_day' 
+                                      ? 'Full Day' 
+                                      : (item.half_day_period === 'morning' ? '8am-12pm' : '12pm-4pm')}
                                   </td>
-                                  <td style={{ fontSize: '0.8rem' }}>{leave.covering_officer || '-'}</td>
+                                  <td>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                      {getStatusIcon(item.status)}
+                                      <span style={{ fontSize: '0.8rem', textTransform: 'capitalize' }}>{item.status}</span>
+                                    </span>
+                                  </td>
+                                  <td style={{ fontSize: '0.8rem' }}>{item.covering_officer || '-'}</td>
                                 </tr>
                               ))}
                             </tbody>
